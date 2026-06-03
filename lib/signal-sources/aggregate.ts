@@ -1,5 +1,7 @@
 import type { Signal } from "@/types/signal";
 import type { Place } from "@/lib/geocode/types";
+import type { ProductTypeId } from "@/types/product";
+import { PRODUCT_TYPE_BY_ID } from "@/lib/catalog";
 import { fetchUSAspendingAwards } from "./usaspending";
 import { fetchNewsSignalsForRegion } from "./rss-news";
 import { fetchCncJobsForRegion } from "./greenhouse-jobs";
@@ -14,6 +16,9 @@ export interface AggregateMeta {
   // (all are state-level for `code`); the radius-capable jobs engine is added in
   // a later step. Surfaced so the UI can be honest about radius scope.
   territory?: { label: string; type: "state" | "city"; code: string; radius: string };
+  // The discovery route this pull ran for. Echoed today; the route does not yet
+  // scope the sources (Step 5 wires per-route query construction in).
+  route?: { productType: ProductTypeId; label: string };
   unrecognized?: { input: string; suggestions: { code: string; name: string }[] };
   sources: { name: string; status: "ok" | "error" | "skipped"; count: number; error?: string }[];
   totalCount: number;
@@ -73,7 +78,8 @@ function suggestRegions(input: string, limit = 3): { code: string; name: string 
 
 export async function aggregateSignals(
   place: Place,
-  radius: string
+  radius: string,
+  product?: ProductTypeId
 ): Promise<AggregateResult> {
   // The place is already confirmed by the geocoder (no silent guess). Region is
   // a direct code lookup. Region-level sources query the single state code;
@@ -89,6 +95,11 @@ export async function aggregateSignals(
       code: place.code,
       radius,
     },
+    // Echo the selected route. Step 5 will use `product` to scope which sources
+    // run and how their queries are built; today it is a round-trip confirmation.
+    route: product
+      ? { productType: product, label: PRODUCT_TYPE_BY_ID[product].label }
+      : undefined,
     sources: [],
     totalCount: 0,
   };

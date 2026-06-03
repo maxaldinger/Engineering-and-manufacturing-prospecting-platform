@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { TerritoryInput } from "./territory-input";
+import { DiscoveryRoute } from "./discovery-route";
 import { SoftwareFilter } from "./software-filter";
 import { SignalTypeFilter } from "./signal-type-filter";
 import { ProductTypeFilter } from "./product-type-filter";
@@ -41,6 +42,9 @@ interface ApiResponse {
       code: string;
       radius: string;
     };
+    // Echo of the discovery route the pull ran for. Scoping is wired in Step 5;
+    // today this is a round-trip confirmation of the selected product.
+    route?: { productType: string; label: string };
     sources?: SourceStatus[];
     totalCount?: number;
     message?: string;
@@ -59,6 +63,16 @@ export function SignalFeed() {
     place: Place | null;
     radius: string;
   }>({ place: null, radius: "state" });
+  // Discovery route: the single product line this run is scoped to. Default to
+  // CAM (the fully-validated route). Sent with each pull; a ref so changing the
+  // product updates the live preview without re-pulling — scoping is not wired
+  // until Step 5, so a refetch would return identical results today.
+  const [selectedProduct, setSelectedProduct] =
+    React.useState<ProductTypeId>("cam");
+  const selectedProductRef = React.useRef(selectedProduct);
+  React.useEffect(() => {
+    selectedProductRef.current = selectedProduct;
+  }, [selectedProduct]);
   // Primary filter: product types (all on by default).
   const [selectedProductTypes, setSelectedProductTypes] = React.useState<
     Set<ProductTypeId>
@@ -94,6 +108,7 @@ export function SignalFeed() {
         label: place.label,
         country: place.country,
         radius,
+        product: selectedProductRef.current,
       });
       if (place.lat != null) params.set("lat", String(place.lat));
       if (place.lng != null) params.set("lng", String(place.lng));
@@ -258,6 +273,8 @@ export function SignalFeed() {
   return (
     <div className="space-y-4">
       <TerritoryInput loading={loading} onPull={handlePull} />
+
+      <DiscoveryRoute selected={selectedProduct} onSelect={setSelectedProduct} />
 
       <ProductTypeFilter
         options={productTypeCounts}

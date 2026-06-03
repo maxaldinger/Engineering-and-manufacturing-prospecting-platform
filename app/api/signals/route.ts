@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateSignals } from "@/lib/signal-sources/aggregate";
 import type { Place, PlaceType, Country } from "@/lib/geocode/types";
+import { PRODUCT_TYPE_BY_ID } from "@/lib/catalog";
+import type { ProductTypeId } from "@/types/product";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +15,13 @@ export async function GET(req: NextRequest) {
   const sp = new URL(req.url).searchParams;
   const code = (sp.get("code") ?? "").trim().toUpperCase();
   const radius = (sp.get("radius") ?? "state").trim();
+  // Validate the discovery route against known product types; an unknown value
+  // is dropped (undefined) rather than echoed back.
+  const productParam = (sp.get("product") ?? "").trim();
+  const product =
+    productParam in PRODUCT_TYPE_BY_ID
+      ? (productParam as ProductTypeId)
+      : undefined;
 
   if (!code) {
     return NextResponse.json({
@@ -38,7 +47,7 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    const { signals, meta } = await aggregateSignals(place, radius);
+    const { signals, meta } = await aggregateSignals(place, radius, product);
     return NextResponse.json({ signals, meta });
   } catch (err: unknown) {
     return NextResponse.json(
