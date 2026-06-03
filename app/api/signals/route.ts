@@ -1,47 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateSignals } from "@/lib/signal-sources/aggregate";
+import type { Place, PlaceType, Country } from "@/lib/geocode/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Live signal endpoint. Aggregates real signals for a US state or Canadian
-// province. No fabricated companies, no synthetic contacts.
-//
-// Sources wired (see lib/signal-sources/aggregate.ts):
-// - ZoomInfo - territory company discovery, firmographics, installed CAM/CAD
-//   technology detection, and real decision-maker contacts. Primary source;
-//   runs when ZOOMINFO_* credentials are set, otherwise reported as "skipped".
-// - USAspending.gov (https://api.usaspending.gov/) - federal manufacturing
-//   contract awards, filtered to manufacturing NAICS in the rep's state. No auth.
-// - Greenhouse public boards - CNC / CAM / machinist job postings. No auth.
-// - Modern Machine Shop, IndustryWeek, American Machinist, Aerospace
-//   Manufacturing and Design via public RSS. No auth.
+// Live signal endpoint. Takes a CONFIRMED place (from /api/geocode, picked by the
+// rep) rather than a free-text location, so signals can never be sent to a
+// silently-guessed region. Radius is threaded for the geo-capable jobs engine;
+// current sources are state-level (see aggregate meta.territory).
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const location = searchParams.get("location") || "";
+  const sp = new URL(req.url).searchParams;
+  const code = (sp.get("code") ?? "").trim().toUpperCase();
+  const radius = (sp.get("radius") ?? "state").trim();
 
-  if (!location.trim()) {
+  if (!code) {
     return NextResponse.json({
       signals: [],
       meta: {
         sources: [],
         totalCount: 0,
-        message: "Type a state, province, or city to pull live signals.",
+        message: "Confirm a territory to pull live signals.",
       },
     });
   }
 
+  const lat = sp.get("lat");
+  const lng = sp.get("lng");
+  const place: Place = {
+    type: (sp.get("type") === "city" ? "city" : "state") as PlaceType,
+    name: sp.get("name") ?? code,
+    code,
+    country: (sp.get("country") === "CA" ? "CA" : "US") as Country,
+    lat: lat ? Number.parseFloat(lat) : undefined,
+    lng: lng ? Number.parseFloat(lng) : undefined,
+    label: sp.get("label") ?? sp.get("name") ?? code,
+  };
+
   try {
-    const { signals, meta } = await aggregateSignals(location);
+    const { signals, meta } = await aggregateSignals(place, radius);
     return NextResponse.json({ signals, meta });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
       {
         signals: [],
         meta: {
           sources: [],
           totalCount: 0,
-          error: err?.message ?? "Aggregation failed",
+          error: err instanceof Error ? err.message : "Aggregation failed",
         },
       },
       { status: 500 }

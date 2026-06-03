@@ -11,6 +11,10 @@ export interface Place {
   type: PlaceType;
   name: string; // "Washington", "Detroit", "District of Columbia"
   code: string; // state/province code; for a city, the state it sits in
+  // Region codes region-level sources query. Defaults to [code]. Extension
+  // point: a known cross-state metro can be promoted to multiple codes here
+  // (see lib/geocode/metros.ts) without reshaping the data flow.
+  regionCodes?: string[];
   country: Country;
   lat?: number; // city only — used for radius
   lng?: number; // city only

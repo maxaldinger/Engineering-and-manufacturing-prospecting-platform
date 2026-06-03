@@ -1,14 +1,19 @@
 import type { Signal } from "@/types/signal";
+import type { Place } from "@/lib/geocode/types";
 import { fetchUSAspendingAwards } from "./usaspending";
 import { fetchNewsSignalsForRegion } from "./rss-news";
 import { fetchCncJobsForRegion } from "./greenhouse-jobs";
 import { fetchZoomInfoSignals, isZoomInfoConfigured } from "./zoominfo";
-import { ALL_REGIONS, detectRegion } from "./state-codes";
+import { ALL_REGIONS, regionForCode } from "./state-codes";
 
 const ZOOMINFO_SOURCE_NAME = "ZoomInfo (territory companies + contacts)";
 
 export interface AggregateMeta {
   region?: { code: string; name: string; country: "US" | "CA" };
+  // The confirmed territory + requested radius. No current source honors radius
+  // (all are state-level for `code`); the radius-capable jobs engine is added in
+  // a later step. Surfaced so the UI can be honest about radius scope.
+  territory?: { label: string; type: "state" | "city"; code: string; radius: string };
   unrecognized?: { input: string; suggestions: { code: string; name: string }[] };
   sources: { name: string; status: "ok" | "error" | "skipped"; count: number; error?: string }[];
   totalCount: number;
@@ -66,24 +71,34 @@ function suggestRegions(input: string, limit = 3): { code: string; name: string 
     .map((x) => ({ code: x.code, name: x.name }));
 }
 
-export async function aggregateSignals(location: string): Promise<AggregateResult> {
-  const region = detectRegion(location);
+export async function aggregateSignals(
+  place: Place,
+  radius: string
+): Promise<AggregateResult> {
+  // The place is already confirmed by the geocoder (no silent guess). Region is
+  // a direct code lookup. Region-level sources query the single state code;
+  // place.regionCodes is the multi-code extension point for cross-state metros.
+  const region = regionForCode(place.code);
   const meta: AggregateMeta = {
     region: region
       ? { code: region.code, name: region.name, country: region.country }
       : undefined,
+    territory: {
+      label: place.label,
+      type: place.type,
+      code: place.code,
+      radius,
+    },
     sources: [],
     totalCount: 0,
   };
 
-  // No silent fallback. If we cannot recognize the input, surface an
-  // explicit "unrecognized" payload with did-you-mean suggestions and
-  // return zero signals. Better to show "not recognized" than to bleed
-  // Texas signals into a Louisiana search.
+  // Defensive: a confirmed place always carries a valid region code, but guard
+  // a direct/misformed call rather than bleeding the wrong region.
   if (!region) {
     meta.unrecognized = {
-      input: location,
-      suggestions: suggestRegions(location),
+      input: place.label,
+      suggestions: suggestRegions(place.label),
     };
     return { signals: [], meta };
   }

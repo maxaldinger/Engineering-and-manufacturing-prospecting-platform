@@ -10,6 +10,7 @@ import { CompanyDossier } from "@/components/dossier/company-dossier";
 import { applyFilters } from "./apply-filters";
 import { ALL_PRODUCT_TYPES, COMPETITORS } from "@/lib/catalog";
 import type { ProductTypeId } from "@/types/product";
+import type { Place } from "@/lib/geocode/types";
 import { Button } from "@/components/ui/button";
 import {
   Radio,
@@ -34,9 +35,11 @@ interface ApiResponse {
   signals: Signal[];
   meta?: {
     region?: { code: string; name: string; country: "US" | "CA" };
-    unrecognized?: {
-      input: string;
-      suggestions: { code: string; name: string }[];
+    territory?: {
+      label: string;
+      type: "state" | "city";
+      code: string;
+      radius: string;
     };
     sources?: SourceStatus[];
     totalCount?: number;
@@ -50,7 +53,12 @@ export function SignalFeed() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [meta, setMeta] = React.useState<ApiResponse["meta"]>(undefined);
-  const [center, setCenter] = React.useState({ location: "", radius: "state" });
+  // A confirmed Place (from the geocoder) plus its requested radius — never a
+  // free-text location. Null until the rep picks + pulls a territory.
+  const [territory, setTerritory] = React.useState<{
+    place: Place | null;
+    radius: string;
+  }>({ place: null, radius: "state" });
   // Primary filter: product types (all on by default).
   const [selectedProductTypes, setSelectedProductTypes] = React.useState<
     Set<ProductTypeId>
@@ -71,16 +79,25 @@ export function SignalFeed() {
   const [hasSearched, setHasSearched] = React.useState(false);
   const [expandedKey, setExpandedKey] = React.useState<string | null>(null);
 
-  const fetchSignals = React.useCallback(async (location: string, radius: string) => {
-    if (!location.trim()) return;
+  const fetchSignals = React.useCallback(async (place: Place, radius: string) => {
     setLoading(true);
     setError(null);
     setHasSearched(true);
     setExpandedKey(null);
     try {
-      const res = await fetch(
-        `/api/signals?location=${encodeURIComponent(location)}&radius=${encodeURIComponent(radius)}`
-      );
+      // Build the query from the CONFIRMED place's fields, not free text — the
+      // API reconstructs the Place and never re-geocodes a guess.
+      const params = new URLSearchParams({
+        code: place.code,
+        type: place.type,
+        name: place.name,
+        label: place.label,
+        country: place.country,
+        radius,
+      });
+      if (place.lat != null) params.set("lat", String(place.lat));
+      if (place.lng != null) params.set("lng", String(place.lng));
+      const res = await fetch(`/api/signals?${params.toString()}`);
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       const data: ApiResponse = await res.json();
       setAllSignals(data.signals ?? []);
@@ -95,10 +112,10 @@ export function SignalFeed() {
   }, []);
 
   React.useEffect(() => {
-    if (center.location.trim()) {
-      fetchSignals(center.location, center.radius);
+    if (territory.place) {
+      fetchSignals(territory.place, territory.radius);
     }
-  }, [fetchSignals, center.location, center.radius]);
+  }, [fetchSignals, territory.place, territory.radius]);
 
   // competitor name -> its product types, for scoping the software sub-filter.
   const competitorTypes = React.useMemo(() => {
@@ -188,8 +205,8 @@ export function SignalFeed() {
     return counts;
   }, [allSignals]);
 
-  const handlePull = (location: string, radius: string) => {
-    setCenter({ location, radius });
+  const handlePull = (place: Place, radius: string) => {
+    setTerritory({ place, radius });
   };
 
   const toggleProductType = (id: ProductTypeId) => {
@@ -240,12 +257,7 @@ export function SignalFeed() {
 
   return (
     <div className="space-y-4">
-      <TerritoryInput
-        initialLocation={center.location}
-        initialRadius={center.radius}
-        loading={loading}
-        onPull={handlePull}
-      />
+      <TerritoryInput loading={loading} onPull={handlePull} />
 
       <ProductTypeFilter
         options={productTypeCounts}
@@ -294,7 +306,9 @@ export function SignalFeed() {
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => fetchSignals(center.location, center.radius)}
+            onClick={() =>
+              territory.place && fetchSignals(territory.place, territory.radius)
+            }
             className="ml-auto"
           >
             Retry
@@ -302,13 +316,7 @@ export function SignalFeed() {
         </div>
       )}
 
-      {meta?.unrecognized && !loading ? (
-        <UnrecognizedTerritory
-          input={meta.unrecognized.input}
-          suggestions={meta.unrecognized.suggestions}
-          onPick={(name) => setCenter({ location: name, radius: center.radius })}
-        />
-      ) : !hasSearched && !loading ? (
+      {!hasSearched && !loading ? (
         <InitialPrompt />
       ) : loading ? (
         <div className="space-y-2">
@@ -320,11 +328,17 @@ export function SignalFeed() {
           ))}
         </div>
       ) : groups.length === 0 ? (
-        <NoResultsState location={center.location} sources={meta?.sources} />
+        <NoResultsState
+          location={territory.place?.label ?? ""}
+          sources={meta?.sources}
+        />
       ) : (
         <div className="space-y-2">
           {groups.length < 5 && (
-            <ThinCoverageBanner location={center.location} count={groups.length} />
+            <ThinCoverageBanner
+              location={territory.place?.label ?? ""}
+              count={groups.length}
+            />
           )}
           {groups.map((group) => (
             <SignalRow
@@ -340,51 +354,6 @@ export function SignalFeed() {
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function UnrecognizedTerritory({
-  input,
-  suggestions,
-  onPick,
-}: {
-  input: string;
-  suggestions: { code: string; name: string }[];
-  onPick: (name: string) => void;
-}) {
-  return (
-    <div className="rounded-xl border border-amber-300 bg-amber-50 p-6">
-      <div className="flex items-start gap-3">
-        <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-        <div className="flex-1">
-          <h3 className="text-base font-semibold text-amber-900">
-            We could not recognize &quot;{input}&quot; as a territory
-          </h3>
-          <p className="text-sm text-amber-900/80 mt-1 leading-relaxed">
-            The Signal Feed only pulls real data when the territory matches a US state, Canadian province, or a known manufacturing city. Try a state name, a 2-letter code, or a city + state.
-          </p>
-          {suggestions.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs uppercase tracking-wider font-semibold text-amber-800 mb-2">
-                Did you mean
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {suggestions.map((s) => (
-                  <button
-                    key={s.code}
-                    type="button"
-                    onClick={() => onPick(s.name)}
-                    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-amber-400 bg-white text-amber-900 hover:bg-amber-100 transition-colors"
-                  >
-                    {s.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

@@ -6,9 +6,15 @@ export type { Geocoder, Place, PlaceType, Country } from "./types";
 export { localGazetteer } from "./gazetteer";
 export { nominatimGeocoder, parseNominatimResults } from "./nominatim";
 
-// Dedupe + order candidates: cities (most specific, carry coordinates) first,
-// then state-wide. A state is never listed twice.
-export function mergeCandidates(local: Place[], remote: Place[]): Place[] {
+// Dedupe + order candidates. Ordering: an EXACT state-name match floats to the
+// very top (so "Washington" surfaces WA state, not buried under DC/PA cities),
+// then cities (most specific, carry coordinates), then the remaining states.
+// A state is never listed twice.
+export function mergeCandidates(
+  local: Place[],
+  remote: Place[],
+  query = ""
+): Place[] {
   const out: Place[] = [];
   const seen = new Set<string>();
   const key = (p: Place) =>
@@ -19,7 +25,12 @@ export function mergeCandidates(local: Place[], remote: Place[]): Place[] {
     seen.add(k);
     out.push(p);
   }
-  return out.sort((a, b) => (a.type === b.type ? 0 : a.type === "city" ? -1 : 1));
+  const q = query.trim().toLowerCase();
+  const rank = (p: Place) => {
+    if (p.type === "state" && p.name.toLowerCase() === q) return 0;
+    return p.type === "city" ? 1 : 2;
+  };
+  return out.sort((a, b) => rank(a) - rank(b));
 }
 
 // Local gazetteer (instant state-wide candidates) + network geocoder (cities
@@ -39,7 +50,7 @@ export function compositeGeocoder(network: Geocoder = nominatimGeocoder): Geocod
           return [] as Place[];
         }),
       ]);
-      return mergeCandidates(local, remote);
+      return mergeCandidates(local, remote, query);
     },
   };
 }
