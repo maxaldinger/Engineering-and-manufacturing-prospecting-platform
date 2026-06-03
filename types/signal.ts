@@ -1,5 +1,6 @@
 import type { Contact } from "./contact";
 import type { CamSoftwareName } from "./software";
+import type { ProductTypeId } from "./product";
 
 export type SignalType = "Job Posting" | "News" | "Gov Contract" | "Tech Adoption";
 
@@ -13,6 +14,11 @@ export interface Signal {
   employeeEstimate?: string;
   revenueEstimate?: string;
   detectedSoftware: { name: CamSoftwareName | string; version?: string }[];
+  // Product types this signal is relevant to (cam, cad, simulation, ...). The
+  // primary segmentation axis. An empty array means Unclassified: no product
+  // type was detected, so the signal is surfaced under "Unclassified" rather
+  // than dropped. Every source populates this — never left undefined.
+  productTypes: ProductTypeId[];
   signalType: SignalType;
   title: string;
   description: string;

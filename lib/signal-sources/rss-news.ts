@@ -5,6 +5,7 @@
 import type { Signal } from "@/types/signal";
 import { detectCamMentions, relativeAge, scoreSignal, summarize } from "./extract";
 import { BRAND } from "@/lib/brand";
+import { productTypesForText } from "@/lib/catalog";
 
 interface RssItem {
   title: string;
@@ -234,6 +235,8 @@ function rssItemToSignal(
     employeeEstimate: undefined,
     revenueEstimate: undefined,
     detectedSoftware: detected.length ? detected : [{ name: "Unknown" }],
+    // [] = Unclassified (no product type matched in the headline/summary).
+    productTypes: productTypesForText(haystack),
     signalType: spec.signalType,
     title: item.title,
     description: summarize(item.description || item.title),

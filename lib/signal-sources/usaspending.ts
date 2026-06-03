@@ -12,6 +12,7 @@ import {
   scoreSignal,
   summarize,
 } from "./extract";
+import { productTypesForText } from "@/lib/catalog";
 
 const ENDPOINT = "https://api.usaspending.gov/api/v2/search/spending_by_award/";
 
@@ -103,6 +104,10 @@ function awardToSignal(a: USAspendingAward): Signal | null {
     employeeEstimate: undefined,
     revenueEstimate: undefined,
     detectedSoftware: detectedSoftware.length ? detectedSoftware : [{ name: "Unknown" }],
+    // [] = Unclassified. Federal contract descriptions rarely name a CAD/CAM
+    // tool, so most awards land here — manufacturingRelevant carries the
+    // industry signal instead.
+    productTypes: productTypesForText(description),
     signalType: "Gov Contract",
     title,
     description: summarize(description || `${sub} award to ${company} in ${city || state}.`),

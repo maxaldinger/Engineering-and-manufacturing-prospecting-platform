@@ -20,6 +20,7 @@ import {
 } from "./extract";
 import { regionForCode } from "./state-codes";
 import { BRAND } from "@/lib/brand";
+import { productTypesForText } from "@/lib/catalog";
 
 interface GreenhouseLocation {
   name?: string;
@@ -193,6 +194,8 @@ function jobToSignal(
     employeeEstimate: undefined,
     revenueEstimate: undefined,
     detectedSoftware: detected.length ? detected : [{ name: "Unknown" }],
+    // [] = Unclassified (no product type matched in the job text).
+    productTypes: productTypesForText(text),
     signalType: "Job Posting",
     title: job.title,
     description: summarize(

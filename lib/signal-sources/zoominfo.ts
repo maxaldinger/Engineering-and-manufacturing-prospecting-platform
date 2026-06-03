@@ -26,6 +26,7 @@ import {
   summarize,
 } from "./extract";
 import { regionForCode } from "./state-codes";
+import { productTypesForText } from "@/lib/catalog";
 import {
   enrichCompanies,
   enrichContacts,
@@ -206,7 +207,8 @@ function companyToSignal(
   // Run CAM/CAD detection across the company's technology stack plus industry
   // text. ZoomInfo tech names like "Mastercam" / "SOLIDWORKS" match directly.
   const techText = company.technologies.join(", ");
-  const detected = detectCamMentions(`${techText} ${company.industry ?? ""}`);
+  const detectText = `${techText} ${company.industry ?? ""}`;
+  const detected = detectCamMentions(detectText);
   const camNames = detected.map((d) => d.name).filter((n) => !CAD_OR_OWN.test(n));
   const cadNames = detected.map((d) => d.name).filter((n) => CAD_OR_OWN.test(n));
   const hasCam = camNames.length > 0;
@@ -285,6 +287,8 @@ function companyToSignal(
         ? `$${(company.revenue / 1000).toFixed(0)}M`
         : undefined,
     detectedSoftware,
+    // [] = Unclassified (no product type in the tech stack / industry text).
+    productTypes: productTypesForText(detectText),
     signalType: "Tech Adoption",
     title,
     description,

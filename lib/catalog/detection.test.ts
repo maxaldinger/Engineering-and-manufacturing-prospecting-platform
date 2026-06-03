@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   detectProducts,
+  productTypesForText,
   COMPETITORS,
   PORTFOLIO,
   type CatalogProductName,
@@ -76,6 +77,29 @@ describe("keyword uniqueness: one keyword maps to exactly one product", () => {
       }
     }
     expect(dupes).toEqual([]);
+  });
+});
+
+describe("fallback: unmatched text is Unclassified, not dropped", () => {
+  const UNMATCHED = [
+    "We provide corporate catering and event staffing services.",
+    "Hiring a payroll administrator and an office receptionist.",
+    "",
+  ];
+  for (const input of UNMATCHED) {
+    it(`productTypes:[] and no detections for: "${input.slice(0, 30)}"`, () => {
+      expect(detectProducts(input)).toEqual([]);
+      expect(productTypesForText(input)).toEqual([]);
+    });
+  }
+
+  it("a manufacturing contract with no named tool still yields []", () => {
+    // USAspending-style description: manufacturing-relevant but names no
+    // CAD/CAM/sim tool. Must classify as [] (Unclassified), surfaced via
+    // manufacturingRelevant rather than a product type.
+    const desc =
+      "Award for fabrication and assembly of steel brackets per drawing.";
+    expect(productTypesForText(desc)).toEqual([]);
   });
 });
 
