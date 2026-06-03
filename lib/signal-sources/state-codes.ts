@@ -271,4 +271,33 @@ export function regionForCode(code: string): Region | null {
   return REGIONS.find((r) => r.code === code) ?? null;
 }
 
+// All plausible region (state/province) interpretations of a query, for the
+// geocoder's local fast-path. Unlike detectRegion, this returns EVERY match
+// (e.g. "Portland" -> Oregon + Maine) rather than silently picking the first,
+// so the geocoder/UI can surface them for confirmation.
+export function regionCandidates(query: string): Region[] {
+  if (!query || !query.trim()) return [];
+  const lower = query.toLowerCase().trim();
+  const out = new Map<string, Region>();
+  const add = (r: Region | undefined) => {
+    if (r) out.set(r.code, r);
+  };
+
+  const parts = lower.split(",").map((p) => p.trim()).filter(Boolean);
+  for (const part of parts) {
+    if (/^[a-z]{2}$/.test(part)) {
+      add(REGIONS.find((r) => r.code.toLowerCase() === part));
+    }
+    add(REGIONS.find((r) => r.name.toLowerCase() === part));
+  }
+  add(REGIONS.find((r) => r.name.toLowerCase() === lower));
+  if (/^[a-z]{2}$/.test(lower)) {
+    add(REGIONS.find((r) => r.code.toLowerCase() === lower));
+  }
+  for (const c of CITY_TO_CODE) {
+    if (lower.includes(c.city)) add(REGIONS.find((r) => r.code === c.code));
+  }
+  return Array.from(out.values());
+}
+
 export const ALL_REGIONS = REGIONS;
