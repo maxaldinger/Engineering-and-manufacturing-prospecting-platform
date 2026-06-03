@@ -17,6 +17,10 @@ export interface CompanyGroup {
   productTypes: ProductTypeId[];
   oneLiner: string;
   oldestPostedAgo: string;
+  // DEAD as of Step D3: its only reader, the signal-row "CAM-relevant" badge,
+  // was retired (productTypes chips replaced it). Still computed below but
+  // unread. Remove in Step F (Signal.camRelevant itself is still used by the
+  // aggregate camRelevantCount meta, so leave that until F too).
   camRelevant: boolean;
   manufacturingRelevant: boolean;
 }

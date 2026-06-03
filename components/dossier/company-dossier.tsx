@@ -28,6 +28,7 @@ import {
   linkedinSearchUrl,
   type TargetContact,
 } from "@/lib/linkedin-targets";
+import { PRODUCT_TYPE_BY_ID } from "@/lib/catalog";
 import type { CompanyGroup, Urgency } from "@/lib/signal-grouping";
 import type { Signal } from "@/types/signal";
 import type { Contact } from "@/types/contact";
@@ -343,6 +344,22 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border border-primary/30 bg-primary-subtle text-primary">
                     {group.industry}
                   </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {group.productTypes.length > 0 ? (
+                    group.productTypes.map((id) => (
+                      <span
+                        key={id}
+                        className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border border-navy/20 bg-navy/5 text-navy"
+                      >
+                        {PRODUCT_TYPE_BY_ID[id]?.label ?? id}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border border-dashed border-amber-300 bg-amber-50 text-amber-700">
+                      Unclassified
+                    </span>
+                  )}
                 </div>
                 {group.detectedSoftware.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2.5">

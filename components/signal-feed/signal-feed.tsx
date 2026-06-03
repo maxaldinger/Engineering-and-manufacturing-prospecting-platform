@@ -107,30 +107,6 @@ export function SignalFeed() {
     return m;
   }, []);
 
-  // When the product-type selection narrows, clear deselections for software no
-  // longer in scope, so re-enabling that type starts fresh. A dormant
-  // deselection reviving on re-enable would be edge case 2, just delayed.
-  React.useEffect(() => {
-    setDeselectedSoftware((ds) => {
-      if (ds.size === 0) return ds;
-      const inScope = (name: string) => {
-        const types = competitorTypes.get(name);
-        return (
-          !!types &&
-          types.some(
-            (t) => selectedProductTypes.size === 0 || selectedProductTypes.has(t)
-          )
-        );
-      };
-      let changed = false;
-      const next = new Set<string>();
-      for (const name of ds) {
-        if (inScope(name)) next.add(name);
-        else changed = true;
-      }
-      return changed ? next : ds;
-    });
-  }, [selectedProductTypes, competitorTypes]);
 
   // Empty product-type selection means "no constraint" (show all classified),
   // never a blank feed.
@@ -217,12 +193,30 @@ export function SignalFeed() {
   };
 
   const toggleProductType = (id: ProductTypeId) => {
-    setSelectedProductTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    const turningOff = selectedProductTypes.has(id);
+    const next = new Set(selectedProductTypes);
+    if (turningOff) next.delete(id);
+    else next.add(id);
+    setSelectedProductTypes(next);
+
+    // Clear deselections for software no longer in scope, in the SAME action
+    // that narrowed the selection (not an effect reacting afterward). Keep a
+    // multi-type tool's deselection if it is still in scope via another type.
+    if (turningOff) {
+      setDeselectedSoftware((ds) => {
+        if (ds.size === 0) return ds;
+        let changed = false;
+        const kept = new Set<string>();
+        for (const name of ds) {
+          const types = competitorTypes.get(name);
+          const stillInScope =
+            !!types && types.some((t) => next.size === 0 || next.has(t));
+          if (stillInScope) kept.add(name);
+          else changed = true;
+        }
+        return changed ? kept : ds;
+      });
+    }
   };
 
   // Track deselection: a name present in the set means the chip is turned off.
