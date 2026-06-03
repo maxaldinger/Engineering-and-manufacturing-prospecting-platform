@@ -1,6 +1,6 @@
 import type { Contact } from "./contact";
-import type { CamSoftwareName } from "./software";
 import type { ProductTypeId } from "./product";
+import type { DetectedProduct } from "@/lib/catalog";
 
 export type SignalType = "Job Posting" | "News" | "Gov Contract" | "Tech Adoption";
 
@@ -13,7 +13,9 @@ export interface Signal {
   distanceMiles: number;
   employeeEstimate?: string;
   revenueEstimate?: string;
-  detectedSoftware: { name: CamSoftwareName | string; version?: string }[];
+  // Products detected in the prospect's stack/text, typed against the catalog.
+  // [] when nothing matched (see productTypes for the Unclassified case).
+  detectedSoftware: DetectedProduct[];
   // Product types this signal is relevant to (cam, cad, simulation, ...). The
   // primary segmentation axis. An empty array means Unclassified: no product
   // type was detected, so the signal is surfaced under "Unclassified" rather

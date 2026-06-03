@@ -167,7 +167,7 @@ export async function aggregateSignals(location: string): Promise<AggregateResul
   let manufacturingRelevantCount = 0;
   for (const s of merged) {
     for (const sw of s.detectedSoftware) {
-      if (sw.name && sw.name !== "Unknown") {
+      if (sw.name) {
         detectionCounts[sw.name] = (detectionCounts[sw.name] ?? 0) + 1;
       }
     }
@@ -190,7 +190,7 @@ export async function aggregateSignals(location: string): Promise<AggregateResul
       descriptionExcerpt: s.description.slice(0, 240),
       detectedSoftware: s.detectedSoftware
         .map((d) => d.name)
-        .filter((n) => n && n !== "Unknown"),
+        .filter((n) => n),
       camRelevant: !!s.camRelevant,
       manufacturingRelevant: !!s.manufacturingRelevant,
     }));

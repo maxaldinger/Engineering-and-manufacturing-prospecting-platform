@@ -38,7 +38,7 @@ function dedupeSoftware(signals: Signal[]): string[] {
   const set = new Set<string>();
   for (const s of signals) {
     for (const sw of s.detectedSoftware) {
-      if (sw.name && sw.name !== "Unknown") {
+      if (sw.name) {
         set.add(sw.version ? `${sw.name} ${sw.version}` : sw.name);
       }
     }
@@ -58,7 +58,7 @@ function pickIndustry(signals: Signal[]): string {
 
 function buildOneLiner(top: Signal): string {
   const sw = top.detectedSoftware
-    .filter((x) => x.name && x.name !== "Unknown")
+    .filter((x) => x.name)
     .map((x) => (x.version ? `${x.name} ${x.version}` : x.name))
     .join(", ");
   const titleClean = top.title.replace(/\s+/g, " ").trim();

@@ -3,9 +3,9 @@
 // description for state name, common cities, or the state code.
 
 import type { Signal } from "@/types/signal";
-import { detectCamMentions, relativeAge, scoreSignal, summarize } from "./extract";
+import { relativeAge, scoreSignal, summarize } from "./extract";
 import { BRAND } from "@/lib/brand";
-import { productTypesForText } from "@/lib/catalog";
+import { classifyText } from "@/lib/catalog";
 
 interface RssItem {
   title: string;
@@ -216,7 +216,7 @@ function rssItemToSignal(
   stateCode: string
 ): Signal | null {
   const haystack = `${item.title} ${item.description}`;
-  const detected = detectCamMentions(haystack);
+  const { detectedSoftware, productTypes } = classifyText(haystack);
   const daysOld = item.pubDate
     ? Math.floor((Date.now() - item.pubDate.getTime()) / 86_400_000)
     : undefined;
@@ -234,9 +234,9 @@ function rssItemToSignal(
     distanceMiles: 0,
     employeeEstimate: undefined,
     revenueEstimate: undefined,
-    detectedSoftware: detected.length ? detected : [{ name: "Unknown" }],
+    detectedSoftware,
     // [] = Unclassified (no product type matched in the headline/summary).
-    productTypes: productTypesForText(haystack),
+    productTypes,
     signalType: spec.signalType,
     title: item.title,
     description: summarize(item.description || item.title),
@@ -244,8 +244,8 @@ function rssItemToSignal(
     sourceUrl: item.link,
     postedAgo: relativeAge(item.pubDate),
     signalStrength: scoreSignal({
-      hasCam: detected.length > 0,
-      hasCadOnly: detected.some((d) => /solidworks|catia|inventor/i.test(d.name)) && !detected.some((d) => /mastercam|fusion|hsmworks|gibbscam|esprit|bobcad|nx cam|edgecam|surfcam|featurecam/i.test(d.name)),
+      hasCam: detectedSoftware.length > 0,
+      hasCadOnly: detectedSoftware.some((d) => /solidworks|catia|inventor/i.test(d.name)) && !detectedSoftware.some((d) => /mastercam|fusion|hsmworks|gibbscam|esprit|bobcad|nx cam|edgecam|surfcam|featurecam/i.test(d.name)),
       daysOld,
     }),
     contacts: [],

@@ -4,7 +4,6 @@
 
 import type { Signal } from "@/types/signal";
 import {
-  detectCamMentions,
   industryFromNaics,
   isManufacturingRelevant,
   MFG_NAICS_PREFIXES,
@@ -12,7 +11,7 @@ import {
   scoreSignal,
   summarize,
 } from "./extract";
-import { productTypesForText } from "@/lib/catalog";
+import { classifyText } from "@/lib/catalog";
 
 const ENDPOINT = "https://api.usaspending.gov/api/v2/search/spending_by_award/";
 
@@ -76,7 +75,7 @@ function awardToSignal(a: USAspendingAward): Signal | null {
     ? Math.floor((Date.now() - lastModifiedDate.getTime()) / 86_400_000)
     : undefined;
 
-  const detectedSoftware = detectCamMentions(description);
+  const { detectedSoftware, productTypes } = classifyText(description);
   const hasCam = detectedSoftware.length > 0;
   const manufacturingRelevant = isManufacturingRelevant({
     naics,
@@ -103,11 +102,11 @@ function awardToSignal(a: USAspendingAward): Signal | null {
     distanceMiles: 0,
     employeeEstimate: undefined,
     revenueEstimate: undefined,
-    detectedSoftware: detectedSoftware.length ? detectedSoftware : [{ name: "Unknown" }],
+    detectedSoftware,
     // [] = Unclassified. Federal contract descriptions rarely name a CAD/CAM
     // tool, so most awards land here — manufacturingRelevant carries the
     // industry signal instead.
-    productTypes: productTypesForText(description),
+    productTypes,
     signalType: "Gov Contract",
     title,
     description: summarize(description || `${sub} award to ${company} in ${city || state}.`),

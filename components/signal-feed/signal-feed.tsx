@@ -99,10 +99,7 @@ export function SignalFeed() {
       // does mention a CAM tool.
       const camDetections = s.detectedSoftware
         .map((d) => d.name)
-        .filter(
-          (n) =>
-            n && n !== "Unknown" && filterableLower.has(n.toLowerCase())
-        );
+        .filter((n) => n && filterableLower.has(n.toLowerCase()));
       if (camDetections.length === 0) return true;
       return camDetections.some((n) => selectedSoftware.has(n));
     });

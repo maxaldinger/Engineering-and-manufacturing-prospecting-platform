@@ -108,7 +108,7 @@ function buildSignalDigest(group: CompanyGroup): string {
     lines.push(`\n${g.label} (${entries.length}):`);
     for (const s of entries.slice(0, 12)) {
       const sw = s.detectedSoftware
-        .filter((x) => x.name && x.name !== "Unknown")
+        .filter((x) => x.name)
         .map((x) => x.name)
         .join(", ");
       lines.push(
@@ -421,7 +421,7 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
                 const u = urgencyForSignal(s);
                 const Icon = TYPE_ICON[s.signalType] ?? Briefcase;
                 const detected = s.detectedSoftware
-                  .filter((x) => x.name && x.name !== "Unknown")
+                  .filter((x) => x.name)
                   .map((x) => x.name);
                 return (
                   <li

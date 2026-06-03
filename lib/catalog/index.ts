@@ -116,13 +116,24 @@ export function detectRelevantTypes(text: string): ProductTypeId[] {
   return out;
 }
 
-// Union of all product types implied by a text: detected products' types plus
-// relevance hits. This becomes Signal.productTypes in Step C.
-export function productTypesForText(text: string): ProductTypeId[] {
+// Single-pass classification for a signal source: the detected products plus
+// the union of their product types and any relevance-keyword hits. This is the
+// normalization entry point each source uses. productTypes [] = Unclassified
+// (surfaced, never dropped).
+export function classifyText(text: string): {
+  detectedSoftware: DetectedProduct[];
+  productTypes: ProductTypeId[];
+} {
+  const detectedSoftware = detectProducts(text);
   const set = new Set<ProductTypeId>();
-  for (const d of detectProducts(text)) for (const t of d.productTypes) set.add(t);
+  for (const d of detectedSoftware) for (const t of d.productTypes) set.add(t);
   for (const t of detectRelevantTypes(text)) set.add(t);
-  return Array.from(set);
+  return { detectedSoftware, productTypes: Array.from(set) };
+}
+
+// Convenience: just the product types implied by a text (detected + relevance).
+export function productTypesForText(text: string): ProductTypeId[] {
+  return classifyText(text).productTypes;
 }
 
 // Displacement fit for a detected competitor. Preserves the legacy

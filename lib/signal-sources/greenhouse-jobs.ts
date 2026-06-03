@@ -11,7 +11,6 @@
 
 import type { Signal } from "@/types/signal";
 import {
-  detectCamMentions,
   isCamRelevant,
   relativeAge,
   scoreSignal,
@@ -20,7 +19,7 @@ import {
 } from "./extract";
 import { regionForCode } from "./state-codes";
 import { BRAND } from "@/lib/brand";
-import { productTypesForText } from "@/lib/catalog";
+import { classifyText } from "@/lib/catalog";
 
 interface GreenhouseLocation {
   name?: string;
@@ -178,9 +177,9 @@ function jobToSignal(
   // legacy decodeHtml first, then stripHtml is idempotent.
   const cleanContent = stripHtml(decodeHtml(job.content ?? ""));
   const text = `${job.title} ${cleanContent}`;
-  const detected = detectCamMentions(text);
+  const { detectedSoftware, productTypes } = classifyText(text);
   const camRelevant = isCamRelevant(text);
-  const hasCam = detected.some(
+  const hasCam = detectedSoftware.some(
     (d) => !/solidworks|catia|inventor/i.test(d.name)
   );
 
@@ -193,9 +192,9 @@ function jobToSignal(
     distanceMiles: 0,
     employeeEstimate: undefined,
     revenueEstimate: undefined,
-    detectedSoftware: detected.length ? detected : [{ name: "Unknown" }],
+    detectedSoftware,
     // [] = Unclassified (no product type matched in the job text).
-    productTypes: productTypesForText(text),
+    productTypes,
     signalType: "Job Posting",
     title: job.title,
     description: summarize(

@@ -26,7 +26,7 @@ import {
   summarize,
 } from "./extract";
 import { regionForCode } from "./state-codes";
-import { productTypesForText } from "@/lib/catalog";
+import { classifyText } from "@/lib/catalog";
 import {
   enrichCompanies,
   enrichContacts,
@@ -208,9 +208,9 @@ function companyToSignal(
   // text. ZoomInfo tech names like "Mastercam" / "SOLIDWORKS" match directly.
   const techText = company.technologies.join(", ");
   const detectText = `${techText} ${company.industry ?? ""}`;
-  const detected = detectCamMentions(detectText);
-  const camNames = detected.map((d) => d.name).filter((n) => !CAD_OR_OWN.test(n));
-  const cadNames = detected.map((d) => d.name).filter((n) => CAD_OR_OWN.test(n));
+  const { detectedSoftware, productTypes } = classifyText(detectText);
+  const camNames = detectedSoftware.map((d) => d.name).filter((n) => !CAD_OR_OWN.test(n));
+  const cadNames = detectedSoftware.map((d) => d.name).filter((n) => CAD_OR_OWN.test(n));
   const hasCam = camNames.length > 0;
   const hasCad = cadNames.length > 0;
 
@@ -259,12 +259,7 @@ function companyToSignal(
   if (contacts.length) strength += 4;
   strength = Math.max(0, Math.min(98, strength));
 
-  const detectedSoftware = detected.length
-    ? detected.map((d) => ({ name: d.name }))
-    : [{ name: "Unknown" }];
-
-  const camRelevant =
-    hasCam || hasCad || isCamRelevant(`${techText} ${company.industry ?? ""}`);
+  const camRelevant = hasCam || hasCad || isCamRelevant(detectText);
   // These companies came from a manufacturing SIC/NAICS search, so they are
   // manufacturing-relevant by construction. (isManufacturingRelevant is the
   // keyword/NAICS heuristic used for the free sources that lack that filter.)
@@ -288,7 +283,7 @@ function companyToSignal(
         : undefined,
     detectedSoftware,
     // [] = Unclassified (no product type in the tech stack / industry text).
-    productTypes: productTypesForText(detectText),
+    productTypes,
     signalType: "Tech Adoption",
     title,
     description,
