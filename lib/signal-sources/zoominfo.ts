@@ -189,7 +189,12 @@ export async function contactsForCompany(companyId: string): Promise<Contact[]> 
 
     const enriched = await enrichContacts(ids);
     return toContacts(enriched);
-  } catch {
+  } catch (err) {
+    console.warn(
+      `zoominfo: contact enrichment failed for company ${companyId} (${
+        err instanceof Error ? err.message : String(err)
+      }); the company still surfaces, without named contacts.`
+    );
     return [];
   }
 }
@@ -323,10 +328,17 @@ async function searchTerritoryCompanies(
     try {
       const items = await searchCompanies(req);
       if (items.length) return items;
-    } catch {
-      // try the next, less specific filter
+    } catch (err) {
+      console.warn(
+        `zoominfo: company search rejected one filter set (${
+          err instanceof Error ? err.message : String(err)
+        }); falling back to a less specific filter.`
+      );
     }
   }
+  console.warn(
+    `zoominfo: company search returned nothing for ${stateCode} after all filter fallbacks; territory companies will be missing from the feed.`
+  );
   return [];
 }
 

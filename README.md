@@ -1,25 +1,41 @@
 # Portfolio Prospecting
 
-Territory intelligence and AI sales engineering for multi-product reseller reps, organized by product type across the full portfolio.
+Territory intelligence and AI sales engineering for multi-product reseller reps. Prospects, signals, and recommendations are organized by **product type** across the full portfolio — CAD, CAM, Simulation, Electrical, Design Automation, Additive, and Manufacturing Services — not by industry vertical (industry is a secondary signal).
+
+The product line names themselves (SOLIDWORKS, CAMWorks, DriveWorks, Markforged, …) are the catalog the tool helps resell. The application carries no specific reseller's brand — rebranding is a one-line change in `lib/brand.ts`.
+
+This repo has **no synthetic prospect data**. Everything below is real data or AI run on real data.
 
 ## What's live
 
-This repo has **no synthetic prospect data**. Earlier builds shipped with mock companies and contacts; those were removed because reps were starting to mistake fabricated names for real intelligence. Everything below is real data or AI run on real data.
+### Territory Signal Feed (`/`)
 
-### Sales Assist (live)
+Type a US state or Canadian province; the feed aggregates real signals and groups them by company. Every signal is classified by **product type** — the primary filter (7 chips). A secondary software/competitor filter is **scoped to the active product types**, and an always-visible, independently-toggled **Unclassified** bucket guarantees that signals with no detected product type are never silently hidden.
 
-Email, LOU, Product Fit, Objections, Threading, Proposal, Deck, and MEDDPICC builders run against the Anthropic API on whatever the rep types in. No fake content, no hallucinated companies. The MEDDPICC scorecard parses the model's structured response into the 8 criteria, and the follow-up chat carries the current scorecard into the system prompt so answers stay grounded in what the rep documented.
+Sources (`lib/signal-sources/aggregate.ts`), blended automatically:
 
-### Territory Signal Feed (live)
-
-`app/api/signals/route.ts` aggregates real signals for a US state or Canadian province:
-
-- **ZoomInfo** — territory company discovery, firmographics, installed CAM/CAD technology detection, and real decision-maker contacts (emails, direct phones, LinkedIn). Primary source. Requires credentials (see below).
+- **ZoomInfo** — territory company discovery, firmographics, installed-technology detection (competitor + portfolio tools across all product types), and real decision-maker contacts. Primary source; requires credentials (optional).
 - **USAspending.gov** — federal manufacturing contract awards. Free, no auth.
-- **Greenhouse public boards** — CNC / CAM / machinist job postings. Free, no auth.
+- **Greenhouse public boards** — CNC / engineering / manufacturing job postings. Free, no auth.
 - **Trade-press RSS** (Modern Machine Shop, IndustryWeek, American Machinist, AM&D) — news mentions. Free, no auth.
 
-The three free sources work out of the box. ZoomInfo is what turns the feed from public-signal scraps into real account + contact intelligence. When ZoomInfo credentials are absent it is reported as a **skipped** source and the free sources still populate the feed — nothing breaks.
+The three free sources work out of the box. When ZoomInfo credentials are absent it is reported as a **skipped** source and the free sources still populate the feed. Each source's status (`ok` / `error` / `skipped`) and count are surfaced in the feed, and degraded fetches log what's missing and why.
+
+### Sales Assist (`/sales-assist`)
+
+Email, LOU, Product Fit, Objections, Threading, Proposal, Deck, and MEDDPICC builders run against the Anthropic API on whatever the rep types. The system prompt and the per-prospect replacement mapping are **derived from the product catalog** (`lib/sales-context.ts`), so they stay in sync with the portfolio.
+
+## Product-type catalog (the core data model)
+
+`productType` is the first-class dimension. The catalog (`lib/catalog/`) holds the 7 product types — each with the products we sell, relevance keywords, and a flat list of competitors tagged with `productTypes`. Detection, filtering, scoring, ranking, and the AI prompts all derive from it.
+
+`productTypes` is multi-category: a suite tool such as NX spans `["cad","cam","simulation"]` without being duplicated.
+
+**Adding an 8th product type is a data change, not new code:** add an id to `ProductTypeId`, one entry to `PRODUCT_TYPES`, and tag competitors with it. Nothing hardcodes the seven.
+
+### Draft / unvalidated competitive claims
+
+CAM competitor fit reasons are real and assertable. The other product types are seeded with `draft: true` competitors whose specific differentiators are **not** validated. `fitForPrompt` **structurally withholds** draft reasons from every prompt: a draft competitor is framed as a category offering ("our *X* offering, worth a conversation"), never an asserted replacement. No unvalidated competitive claim can reach the model — the prompt rule is only a backstop.
 
 ## Setup
 
@@ -32,103 +48,75 @@ npm run dev
 
 App runs on `http://localhost:3000`.
 
+## Testing
+
+```bash
+npm test   # vitest
+```
+
+- **Detection golden snapshot** — `lib/catalog/detection.test.ts`. A frozen snapshot of CAM detection output; guards against any detection regression now that the legacy oracle is gone.
+- **Scoring + ranking characterization** — `lib/signal-sources/scoring-characterization.test.ts`. CAM-only and empty inputs score and rank identically; non-CAM types contribute additively (one tunable weight config in `lib/catalog/weights.ts`).
+- **Feed filter** — `components/signal-feed/apply-filters.test.ts`. Unclassified survives all product-type combinations; software is scoped; empty selection shows all.
+- **Structural draft guard** — `components/dossier/brief.test.ts`. Draft (non-CAM) competitors never inject specific reasons into a prompt.
+
+Dev tool (not part of the build): `npx tsx scripts/test-brief.ts` runs a live dossier generation on a synthetic Mastercam + Ansys prospect and prints `whyFit` / `portfolioFit`. Reads `ANTHROPIC_API_KEY` from `.env.local`.
+
 ## ZoomInfo integration
 
-### Credentials
-
-ZoomInfo's Enterprise API issues a JWT valid ~60 minutes. The app caches and auto-refreshes it. Two auth modes are supported and **auto-detected** from the environment:
+ZoomInfo's Enterprise API issues a ~60-minute JWT; the app caches and auto-refreshes it. Two auth modes are **auto-detected** from the environment:
 
 | Mode | Env vars | Notes |
 | --- | --- | --- |
-| **PKI** (recommended) | `ZOOMINFO_USERNAME` + `ZOOMINFO_CLIENT_ID` + `ZOOMINFO_PRIVATE_KEY` | Most secure. Store the PEM key on one line with literal `\n` for newlines. |
+| **PKI** (recommended) | `ZOOMINFO_USERNAME` + `ZOOMINFO_CLIENT_ID` + `ZOOMINFO_PRIVATE_KEY` | Store the PEM key on one line with literal `\n` for newlines. |
 | **Basic** | `ZOOMINFO_USERNAME` + `ZOOMINFO_PASSWORD` | Simpler to set up. |
 
-Token generation uses ZoomInfo's official [`zoominfo-api-auth-client`](https://www.npmjs.com/package/zoominfo-api-auth-client) package (a dependency in `package.json`). Basic auth also has a dependency-free fallback.
-
-Verify your setup any time:
-
-```bash
-curl http://localhost:3000/api/zoominfo/status?check=1
-# { "configured": true, "mode": "pki", "auth": "ok", ... }   <- never returns secrets
-```
-
-### API routes
+Verify any time: `curl http://localhost:3000/api/zoominfo/status?check=1` (never returns secrets).
 
 | Route | What it does |
 | --- | --- |
-| `GET /api/zoominfo/status[?check=1]` | Report config + auth mode. `check=1` performs a live auth probe. |
+| `GET /api/zoominfo/status[?check=1]` | Report config + auth mode; `check=1` does a live auth probe. |
 | `GET /api/zoominfo/companies?location=Michigan` | Territory company discovery → `Signal[]` with contacts attached. |
-| `GET /api/zoominfo/contacts?companyId=123` <br> `GET /api/zoominfo/contacts?company=Acme%20Machining` | Ranked, enriched decision-maker contacts for one company. |
+| `GET /api/zoominfo/contacts?companyId=123` | Ranked, enriched decision-maker contacts for one company. |
 | `POST /api/zoominfo/enrich` | On-demand enrich. Body: `{ "type": "company"\|"contact", "ids": ["..."] }`. |
 
-The main `GET /api/signals?location=...` feed blends ZoomInfo with the free sources automatically.
+Per territory pull, ZoomInfo runs `/search/company` (SIC/NAICS-filtered) → `/enrich/company` (firmographics + tech stack) → `/search/contact` + `/enrich/contact`. Each company becomes a `Signal` carrying its detected stack (classified by product type) and real contacts. Field availability depends on your subscription; the integration requests an extended field set and falls back to a guaranteed-core set if rejected (logging the degradation), so it works across tiers.
 
-### How it maps to the feed
-
-Per territory pull, ZoomInfo runs: `/search/company` (manufacturers in the state, SIC-filtered) → `/enrich/company` (firmographics + tech stack) → `/search/contact` + `/enrich/contact` (decision-makers at the top-fit companies). Each company becomes a `Signal` (`signalType: "Tech Adoption"`) carrying its detected CAM/CAD stack and real contacts. CAM detections (Mastercam, Esprit, GibbsCAM, etc.) are scored as displacement targets; SOLIDWORKS/CAD shops as warm.
-
-### Cost + tuning
-
-ZoomInfo bills per enriched record, so the fan-out is capped and tunable via env (no code changes):
-
-| Var | Default | Effect |
-| --- | --- | --- |
-| `ZOOMINFO_MAX_COMPANIES` | 25 | Companies discovered + enriched per search (max 25). |
-| `ZOOMINFO_FETCH_CONTACTS` | true | Set `false` to skip contact enrichment and save credits. |
-| `ZOOMINFO_CONTACT_COMPANIES` | 8 | Top-fit companies that get contact enrichment. |
-| `ZOOMINFO_CONTACTS_PER_COMPANY` | 5 | Contacts enriched per company. |
-| `ZOOMINFO_MIN_EMPLOYEES` | 0 | Skip companies smaller than this. |
-| `ZOOMINFO_SIC_CODES` | manufacturing set | Override industry targeting (comma-separated SIC codes). |
-| `ZOOMINFO_NAICS_CODES` | — | Target by NAICS instead of SIC. |
-| `ZOOMINFO_BASE_URL` | `https://api.zoominfo.com` | Override the API base URL. |
-
-> Field availability (e.g. `companyTechnologies`) depends on your ZoomInfo subscription/entitlements. The integration requests an extended field set and automatically falls back to a guaranteed-core set if your account rejects it, so it works across tiers. Verify field coverage against your account and adjust `lib/zoominfo/endpoints.ts` if needed.
+Spend is bounded and env-tunable (no code changes): `ZOOMINFO_MAX_COMPANIES`, `ZOOMINFO_FETCH_CONTACTS`, `ZOOMINFO_CONTACT_COMPANIES`, `ZOOMINFO_CONTACTS_PER_COMPANY`, `ZOOMINFO_MIN_EMPLOYEES`, `ZOOMINFO_SIC_CODES`, `ZOOMINFO_NAICS_CODES`, `ZOOMINFO_BASE_URL`. See `.env.example`.
 
 ## Stack
 
 - Next.js 14 App Router
 - TypeScript strict mode
-- Tailwind CSS
-- shadcn-style primitives
-- Lucide icons
+- Tailwind CSS + shadcn-style primitives, Lucide icons
 - Anthropic SDK with streaming
 - ZoomInfo Enterprise API
+- vitest
 
 ## Project structure
 
 ```
 app/
   page.tsx                  signal feed (landing)
-  sales-assist/page.tsx     AI sales engineer (live)
+  sales-assist/page.tsx     AI sales engineer
   api/
     signals/route.ts        aggregated feed (ZoomInfo + free sources)
     assist/route.ts         Anthropic streaming endpoint
-    zoominfo/
-      status/route.ts       config + live auth check
-      companies/route.ts    territory company discovery
-      contacts/route.ts      contacts for a company
-      enrich/route.ts        on-demand company/contact enrich
+    zoominfo/...             status / companies / contacts / enrich
 components/
-  layout/                   sidebar + header
-  signal-feed/              territory input, filters, card, empty state
-  dossier/                  company dossier (AI brief + real contacts)
+  signal-feed/              territory input, product-type + software filters,
+                            apply-filters (pure, tested), rows
+  dossier/                  company dossier + brief.ts (pure prompt logic)
   sales-assist/             tabs, selectors, builders
   ui/                       primitives
 lib/
-  zoominfo/
-    client.ts               auth, token cache, authorized request helper
-    endpoints.ts            search/enrich wrappers + normalizers
-    types.ts                request/response shapes
-  signal-sources/
-    zoominfo.ts             territory pull -> Signal[] (discovery + contacts)
-    usaspending.ts          federal contracts (free)
-    greenhouse-jobs.ts      CNC job postings (free)
-    rss-news.ts             trade-press news (free)
-    aggregate.ts            blends all sources
-  cam-software.ts           CAM software list (real)
-  hrs-context.ts            Sales Assist system prompt
-  product-fit.ts            competitor to HRS replacement map
-types/                      signal, contact, software
+  brand.ts                  product name / tagline / User-Agent (rebrand here)
+  catalog/                  productType catalog: types, competitors, weights,
+                            detection, fit (draft-aware), golden detection test
+  sales-context.ts          Sales Assist system prompt (catalog-derived)
+  signal-grouping.ts        Signal[] -> CompanyGroup[]
+  signal-sources/           zoominfo / usaspending / greenhouse / rss + extract
+types/                      signal, contact, product
+scripts/test-brief.ts       dev-only live brief runner (excluded from the build)
 ```
 
 ## Deploy
@@ -137,10 +125,4 @@ types/                      signal, contact, software
 vercel deploy
 ```
 
-Set environment variables in the host's project settings:
-
-- `ANTHROPIC_API_KEY` (required)
-- ZoomInfo: `ZOOMINFO_USERNAME` + (`ZOOMINFO_CLIENT_ID` + `ZOOMINFO_PRIVATE_KEY`) or `ZOOMINFO_PASSWORD`
-- Optional ZoomInfo tuning vars (see table above)
-
-The ZoomInfo routes use the Node.js runtime (set in each route via `export const runtime = "nodejs"`), so they run on any Node host (Vercel, a container, etc.).
+Set environment variables in the host's project settings: `ANTHROPIC_API_KEY` (required); ZoomInfo vars (optional) and tuning vars (above). The ZoomInfo routes use the Node.js runtime (`export const runtime = "nodejs"`), so they run on any Node host.

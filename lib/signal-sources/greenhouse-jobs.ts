@@ -241,10 +241,20 @@ async function fetchBoard(token: string): Promise<GreenhouseJob[]> {
         next: { revalidate: 1800 }, // 30 minutes
       }
     );
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn(
+        `greenhouse-jobs: board "${token}" returned ${res.status}; skipping this board (its jobs will be missing from the feed).`
+      );
+      return [];
+    }
     const data = (await res.json()) as GreenhouseBoard;
     return data.jobs ?? [];
-  } catch {
+  } catch (err) {
+    console.warn(
+      `greenhouse-jobs: board "${token}" fetch failed (${
+        err instanceof Error ? err.message : String(err)
+      }); skipping this board.`
+    );
     return [];
   }
 }

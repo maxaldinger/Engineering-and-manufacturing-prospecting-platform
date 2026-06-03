@@ -181,8 +181,11 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
       await navigator.clipboard.writeText(text);
       setOutreachCopied(true);
       setTimeout(() => setOutreachCopied(false), 1500);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn(
+        "dossier: clipboard write failed; the outreach copy was not copied.",
+        err
+      );
     }
   };
 

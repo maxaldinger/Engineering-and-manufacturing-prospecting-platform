@@ -1,35 +1,8 @@
 import type { ProductTypeId } from "@/types/product";
 import { TYPE_WEIGHTS } from "@/lib/catalog/weights";
 
-// Word-boundary keyword detection. Variants per software prevent false
-// positives (e.g. "esprit" inside "espresso" won't match because we
-// require word boundaries around the alias).
-
-const CAM_SOFTWARE_KEYWORDS: Record<string, string[]> = {
-  Mastercam: ["mastercam", "master cam", "master-cam"],
-  "Fusion 360": ["fusion 360", "fusion360", "autodesk fusion", "fusion cam"],
-  HSMWorks: [
-    "hsmworks",
-    "hsm works",
-    "hsm-works",
-    "inventor cam",
-    "inventor hsm",
-  ],
-  GibbsCAM: ["gibbscam", "gibbs cam", "gibbs-cam"],
-  Esprit: ["esprit cam", "dp esprit", "hexagon esprit", "esprit edge"],
-  "BobCAD-CAM": ["bobcad", "bob cad", "bobcam", "bobcad-cam"],
-  "NX CAM": ["nx cam", "siemens nx", "unigraphics nx"],
-  Edgecam: ["edgecam", "edge cam", "edge-cam"],
-  Surfcam: ["surfcam", "surf cam", "surf-cam"],
-  FeatureCAM: ["featurecam", "feature cam", "feature-cam"],
-  // CAD pairings reps care about for displacement messaging.
-  SolidWorks: ["solidworks", "solid works", "solid-works"],
-  CATIA: ["catia"],
-  CAMWorks: ["camworks", "cam works"],
-  "SOLIDWORKS CAM": ["solidworks cam"],
-  Inventor: ["autodesk inventor"],
-};
-
+// Word-boundary keyword matching. Surrounding a keyword with non-letter or
+// string boundaries prevents false positives (e.g. "esprit" inside "espresso").
 function escapeForRegex(s: string): string {
   return s.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
 }
@@ -48,31 +21,6 @@ export function stripHtml(input: string): string {
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-export function detectCamMentions(text: string): { name: string }[] {
-  if (!text) return [];
-  const cleaned = stripHtml(text);
-  const lower = cleaned.toLowerCase();
-  const found = new Map<string, { name: string }>();
-  for (const [canonical, variants] of Object.entries(CAM_SOFTWARE_KEYWORDS)) {
-    for (const variant of variants) {
-      // Surround keyword with non-letter or string boundary. Allows
-      // version suffixes like "Mastercam 2024", "Mastercam X9", "NX 12"
-      // that strict \b...\b can mishandle when the variant ends in a
-      // letter and the next character is a digit. Digits are non-letters
-      // so they pass the trailing assertion.
-      const regex = new RegExp(
-        `(?:^|[^a-z])${escapeForRegex(variant)}(?:[^a-z]|$)`,
-        "i"
-      );
-      if (regex.test(lower)) {
-        if (!found.has(canonical)) found.set(canonical, { name: canonical });
-        break;
-      }
-    }
-  }
-  return Array.from(found.values());
 }
 
 // CAM-adjacent role and capability keywords that imply a CAM environment
@@ -158,21 +106,6 @@ export function isManufacturingRelevant(opts: {
   }
   return false;
 }
-
-// Names tracked by the rep's filter chips. Used to gate which detections
-// surface in the Signal Feed software counter.
-export const CAM_FILTER_NAMES: string[] = [
-  "Mastercam",
-  "Fusion 360",
-  "HSMWorks",
-  "GibbsCAM",
-  "Esprit",
-  "BobCAD-CAM",
-  "NX CAM",
-  "Edgecam",
-  "Surfcam",
-  "FeatureCAM",
-];
 
 // Manufacturing NAICS prefixes that map to readable industry labels.
 // Source: 2022 NAICS, https://www.census.gov/naics/

@@ -20,8 +20,11 @@ export function CompanyContextProvider({ children }: { children: React.ReactNode
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setActiveState(JSON.parse(raw));
-    } catch {
-      // ignore corrupt local state
+    } catch (err) {
+      console.warn(
+        "active-company: could not restore the saved prospect from localStorage (corrupt or unavailable); starting with none.",
+        err
+      );
     }
   }, []);
 
@@ -30,8 +33,11 @@ export function CompanyContextProvider({ children }: { children: React.ReactNode
     try {
       if (c) localStorage.setItem(STORAGE_KEY, JSON.stringify(c));
       else localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // best effort
+    } catch (err) {
+      console.warn(
+        "active-company: could not persist the active prospect to localStorage; it will not survive a reload.",
+        err
+      );
     }
   }, []);
 

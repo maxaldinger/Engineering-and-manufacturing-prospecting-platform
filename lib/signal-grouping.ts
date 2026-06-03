@@ -17,12 +17,6 @@ export interface CompanyGroup {
   productTypes: ProductTypeId[];
   oneLiner: string;
   oldestPostedAgo: string;
-  // DEAD as of Step D3: its only reader, the signal-row "CAM-relevant" badge,
-  // was retired (productTypes chips replaced it). Still computed below but
-  // unread. Remove in Step F. NOTE: Signal.camRelevant (the per-signal field) is
-  // a PERMANENT survivor — it feeds the internal-only camRelevantCount telemetry
-  // in the aggregate meta, so it is never deleted.
-  camRelevant: boolean;
   manufacturingRelevant: boolean;
 }
 
@@ -124,7 +118,6 @@ export function groupSignalsByCompany(signals: Signal[]): CompanyGroup[] {
         productTypes: [],
         oneLiner: "",
         oldestPostedAgo: s.postedAgo,
-        camRelevant: false,
         manufacturingRelevant: false,
       };
       groups.set(key, group);
@@ -144,7 +137,6 @@ export function groupSignalsByCompany(signals: Signal[]): CompanyGroup[] {
     g.industry = pickIndustry(g.signals);
     g.urgency = urgencyFor(g.maxStrength);
     g.oneLiner = buildOneLiner(g.topSignal);
-    g.camRelevant = g.signals.some((s) => !!s.camRelevant);
     g.manufacturingRelevant = g.signals.some((s) => !!s.manufacturingRelevant);
   }
 

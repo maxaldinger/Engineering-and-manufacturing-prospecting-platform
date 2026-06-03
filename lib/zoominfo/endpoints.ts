@@ -181,6 +181,9 @@ export async function enrichCompanies(
     try {
       resp = await attempt([...COMPANY_CORE_FIELDS, ...COMPANY_EXTENDED_FIELDS]);
     } catch {
+      console.warn(
+        "zoominfo: extended company fields rejected (subscription/entitlements); falling back to the core field set. Technology-stack detection (companyTechnologies) may be unavailable, reducing product detection from ZoomInfo."
+      );
       resp = await attempt(COMPANY_CORE_FIELDS);
     }
     for (const c of flattenEnrich(resp)) {
@@ -220,6 +223,9 @@ export async function enrichContacts(
     try {
       resp = await attempt([...CONTACT_CORE_FIELDS, ...CONTACT_EXTENDED_FIELDS]);
     } catch {
+      console.warn(
+        "zoominfo: extended contact fields rejected; falling back to the core field set. Some contact channels (direct phone, LinkedIn) may be unavailable."
+      );
       resp = await attempt(CONTACT_CORE_FIELDS);
     }
     for (const c of flattenEnrich(resp)) {

@@ -192,10 +192,20 @@ async function fetchFeed(spec: FeedSpec): Promise<RssItem[]> {
       },
       next: { revalidate: 1800 }, // 30 minutes
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn(
+        `rss-news: feed "${spec.source}" (${spec.url}) returned ${res.status}; skipping this feed (its news will be missing from the feed).`
+      );
+      return [];
+    }
     const xml = await res.text();
     return parseRss(xml, spec);
-  } catch {
+  } catch (err) {
+    console.warn(
+      `rss-news: feed "${spec.source}" (${spec.url}) fetch failed (${
+        err instanceof Error ? err.message : String(err)
+      }); skipping this feed.`
+    );
     return [];
   }
 }

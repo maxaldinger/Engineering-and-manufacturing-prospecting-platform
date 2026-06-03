@@ -44,9 +44,9 @@ export function competitorsForType(id: ProductTypeId) {
 }
 
 // --- Detection --------------------------------------------------------------
-// Word-boundary keyword match, byte-identical to extract.ts detectCamMentions
-// (proven by lib/catalog/detection.test.ts) so CAM detection cannot regress.
-// stripHtml is reused from extract for the same parity reason.
+// Word-boundary keyword match. CAM detection output is frozen by the golden
+// snapshot in lib/catalog/detection.test.ts, so it cannot regress. stripHtml is
+// reused from extract so detection runs on the same cleaned text as the sources.
 function escapeForRegex(s: string): string {
   return s.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
 }

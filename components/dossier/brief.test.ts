@@ -43,7 +43,6 @@ function syntheticGroup(): CompanyGroup {
     productTypes: ["cam", "simulation"],
     oneLiner: "Runs Mastercam and Ansys",
     oldestPostedAgo: "current",
-    camRelevant: true,
     manufacturingRelevant: true,
   };
 }

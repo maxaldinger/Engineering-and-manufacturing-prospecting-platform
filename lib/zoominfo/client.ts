@@ -95,7 +95,12 @@ function pickFn(mod: unknown, name: string): ((...a: string[]) => Promise<string
 async function loadAuthClient(): Promise<unknown | null> {
   try {
     return await import("zoominfo-api-auth-client");
-  } catch {
+  } catch (err) {
+    console.warn(
+      `zoominfo: optional auth-client package failed to load (${
+        err instanceof Error ? err.message : String(err)
+      }); falling back to dependency-free auth.`
+    );
     return null;
   }
 }

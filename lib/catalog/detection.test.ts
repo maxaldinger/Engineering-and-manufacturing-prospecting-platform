@@ -6,24 +6,25 @@ import {
   PORTFOLIO,
   type CatalogProductName,
 } from "@/lib/catalog";
-import { detectCamMentions } from "@/lib/signal-sources/extract";
 
-// Real CAM-domain inputs: job-posting prose, ZoomInfo tech strings, news
-// snippets. The golden assertion is that the NEW catalog detector reproduces
-// the LEGACY detectCamMentions name set exactly — multi-type enrichment on the
-// new side is additive and must not change which products are detected.
-const CAM_INPUTS: string[] = [
-  "CNC Programmer - 5+ years Mastercam experience required, 5-axis milling.",
-  "We run GibbsCAM and SolidWorks across our Swiss-type department.",
-  "Manufacturing Engineer familiar with Esprit CAM and post processor development.",
-  "Shop uses Autodesk Fusion 360 for CAD/CAM on prototype runs.",
-  "Siemens NX CAM programming for aerospace structural parts.",
-  "Looking for an HSMWorks / Inventor CAM programmer.",
-  "BobCAD-CAM operator, milling and turning, manual setups.",
-  "Detected stack: SOLIDWORKS, CAMWorks, SOLIDWORKS PDM Professional.",
-  "Edgecam and Surfcam legacy programs being migrated this year.",
-  "FeatureCAM feature-based programming plus CATIA V5 data exchange.",
-  "General machinist role, manual lathes, no CAM package named.",
+// FROZEN GOLDEN SNAPSHOT of CAM detection. Captured from detectProducts while
+// the legacy detectCamMentions oracle still existed and the two were proven
+// equal (see git history). The oracle has since been deleted; THIS snapshot is
+// now the regression truth. If a catalog/keyword/regex change moves CAM
+// detection, these expected values must be re-reviewed deliberately, never
+// updated to silence a failure.
+const GOLDEN: { input: string; expected: CatalogProductName[] }[] = [
+  { input: "CNC Programmer - 5+ years Mastercam experience required, 5-axis milling.", expected: ["Mastercam"] },
+  { input: "We run GibbsCAM and SolidWorks across our Swiss-type department.", expected: ["GibbsCAM", "SolidWorks"] },
+  { input: "Manufacturing Engineer familiar with Esprit CAM and post processor development.", expected: ["Esprit"] },
+  { input: "Shop uses Autodesk Fusion 360 for CAD/CAM on prototype runs.", expected: ["Fusion 360"] },
+  { input: "Siemens NX CAM programming for aerospace structural parts.", expected: ["NX CAM"] },
+  { input: "Looking for an HSMWorks / Inventor CAM programmer.", expected: ["HSMWorks"] },
+  { input: "BobCAD-CAM operator, milling and turning, manual setups.", expected: ["BobCAD-CAM"] },
+  { input: "Detected stack: SOLIDWORKS, CAMWorks, SOLIDWORKS PDM Professional.", expected: ["CAMWorks", "SolidWorks"] },
+  { input: "Edgecam and Surfcam legacy programs being migrated this year.", expected: ["Edgecam", "Surfcam"] },
+  { input: "FeatureCAM feature-based programming plus CATIA V5 data exchange.", expected: ["CATIA", "FeatureCAM"] },
+  { input: "General machinist role, manual lathes, no CAM package named.", expected: [] },
 ];
 
 function names(list: { name: string }[]): string[] {
@@ -32,31 +33,25 @@ function names(list: { name: string }[]): string[] {
 
 const ALL_DETECTABLES = [...COMPETITORS, ...PORTFOLIO];
 
-describe("detection parity: new catalog vs legacy detectCamMentions", () => {
-  for (const input of CAM_INPUTS) {
-    it(`identical name set: "${input.slice(0, 44)}..."`, () => {
-      const legacy = names(detectCamMentions(input));
-      const next = names(detectProducts(input));
-      expect(next).toEqual(legacy);
+describe("CAM detection — frozen golden snapshot", () => {
+  for (const { input, expected } of GOLDEN) {
+    it(`detects ${JSON.stringify(expected)} for: "${input.slice(0, 40)}..."`, () => {
+      expect(names(detectProducts(input))).toEqual([...expected].sort());
     });
   }
 });
 
-describe("known-CAM inputs still classify as CAM (parity of intent)", () => {
-  for (const input of CAM_INPUTS) {
-    // Does the legacy detector find a product the catalog tags as CAM?
-    const legacyCamNames = detectCamMentions(input)
-      .map((d) => d.name)
-      .filter((n) => {
-        const p = ALL_DETECTABLES.find((x) => x.name === n);
-        return p?.productTypes.some((t) => t === "cam");
-      });
-    if (legacyCamNames.length === 0) continue; // not a CAM-naming input
+describe("known-CAM inputs still classify as CAM", () => {
+  for (const { input, expected } of GOLDEN) {
+    // Which of the frozen names does the catalog tag as a CAM product?
+    const camNames = expected.filter((n) => {
+      const p = ALL_DETECTABLES.find((x) => x.name === n);
+      return p?.productTypes.some((t) => t === "cam");
+    });
+    if (camNames.length === 0) continue; // not a CAM-naming input
 
-    it(`cam ∈ productTypes for: "${input.slice(0, 44)}..."`, () => {
-      const types = new Set(
-        detectProducts(input).flatMap((d) => d.productTypes)
-      );
+    it(`cam ∈ productTypes for: "${input.slice(0, 40)}..."`, () => {
+      const types = new Set(detectProducts(input).flatMap((d) => d.productTypes));
       expect(types.has("cam")).toBe(true);
     });
   }
