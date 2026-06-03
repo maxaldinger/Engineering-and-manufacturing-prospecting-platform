@@ -23,7 +23,7 @@ export function SoftwareFilter({
     <div className="glass-panel p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-medium uppercase tracking-wider text-text-secondary">
-          Detected CAM Software
+          Detected Software
         </h3>
         <div className="flex items-center gap-2 text-xs">
           <button

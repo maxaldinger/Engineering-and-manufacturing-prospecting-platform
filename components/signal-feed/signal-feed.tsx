@@ -4,9 +4,11 @@ import * as React from "react";
 import { TerritoryInput } from "./territory-input";
 import { SoftwareFilter } from "./software-filter";
 import { SignalTypeFilter } from "./signal-type-filter";
+import { ProductTypeFilter } from "./product-type-filter";
 import { SignalRow } from "./signal-row";
 import { CompanyDossier } from "@/components/dossier/company-dossier";
-import { CAM_SOFTWARE_NAMES } from "@/lib/cam-software";
+import { ALL_PRODUCT_TYPES } from "@/lib/catalog";
+import type { ProductTypeId } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import {
   Radio,
@@ -48,8 +50,19 @@ export function SignalFeed() {
   const [error, setError] = React.useState<string | null>(null);
   const [meta, setMeta] = React.useState<ApiResponse["meta"]>(undefined);
   const [center, setCenter] = React.useState({ location: "", radius: "state" });
-  const [selectedSoftware, setSelectedSoftware] = React.useState<Set<string>>(
-    new Set([...CAM_SOFTWARE_NAMES])
+  // Primary filter: product types (all on by default).
+  const [selectedProductTypes, setSelectedProductTypes] = React.useState<
+    Set<ProductTypeId>
+  >(new Set(ALL_PRODUCT_TYPES.map((t) => t.id)));
+  // Unclassified (productTypes: []) is an INDEPENDENT bucket, on by default, so
+  // narrowing the product-type chips never silently hides it.
+  const [showUnclassified, setShowUnclassified] = React.useState(true);
+  // Secondary filter tracked as the set the user has turned OFF. Effective
+  // selection = (available, in-scope) minus deselected — so software whose
+  // product type is no longer selected drops out automatically (no stale
+  // orphan), and newly in-scope software defaults on.
+  const [deselectedSoftware, setDeselectedSoftware] = React.useState<Set<string>>(
+    new Set()
   );
   const [selectedTypes, setSelectedTypes] = React.useState<Set<string>>(
     new Set(SIGNAL_TYPES)
@@ -86,42 +99,99 @@ export function SignalFeed() {
     }
   }, [fetchSignals, center.location, center.radius]);
 
+  // Empty product-type selection means "no constraint" (show all classified),
+  // never a blank feed.
+  const typeActive = React.useCallback(
+    (t: ProductTypeId) =>
+      selectedProductTypes.size === 0 || selectedProductTypes.has(t),
+    [selectedProductTypes]
+  );
+
+  // Secondary software options: competitor detections whose product type is in
+  // scope. Rescopes automatically when the product-type selection changes.
+  const softwareCounts = React.useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const s of allSignals) {
+      for (const d of s.detectedSoftware) {
+        if (!d.isCompetitor) continue;
+        if (!d.productTypes.some(typeActive)) continue;
+        counts.set(d.name, (counts.get(d.name) ?? 0) + 1);
+      }
+    }
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [allSignals, typeActive]);
+
+  // Effective software selection: everything in scope that the user has not
+  // turned off. Orphaned selections from a now-deselected product type simply
+  // are not in softwareCounts, so they cannot keep filtering.
+  const effectiveSoftware = React.useMemo(
+    () =>
+      new Set(
+        softwareCounts.map((o) => o.name).filter((n) => !deselectedSoftware.has(n))
+      ),
+    [softwareCounts, deselectedSoftware]
+  );
+
+  const productTypeCounts = React.useMemo(
+    () =>
+      ALL_PRODUCT_TYPES.map((pt) => ({
+        id: pt.id,
+        label: pt.label,
+        count: allSignals.filter((s) => s.productTypes.includes(pt.id)).length,
+      })),
+    [allSignals]
+  );
+
+  const unclassifiedCount = React.useMemo(
+    () => allSignals.filter((s) => s.productTypes.length === 0).length,
+    [allSignals]
+  );
+
   const filtered = React.useMemo(() => {
-    const filterableLower = new Set(
-      CAM_SOFTWARE_NAMES.map((n) => n.toLowerCase())
-    );
     return allSignals.filter((s) => {
+      // 1. Signal type (Job / News / Gov / Tech).
       if (!selectedTypes.has(s.signalType)) return false;
-      // The chip filter only operates on the 10 CAM tools. Signals
-      // whose only detection is a CAD pairing (SolidWorks, CATIA,
-      // Inventor, CAMWorks) or "Unknown" are NOT excluded by the
-      // chips. Reps still see them; chips just filter the subset that
-      // does mention a CAM tool.
-      const camDetections = s.detectedSoftware
-        .map((d) => d.name)
-        .filter((n) => n && filterableLower.has(n.toLowerCase()));
-      if (camDetections.length === 0) return true;
-      return camDetections.some((n) => selectedSoftware.has(n));
+
+      // 2. Product type / Unclassified.
+      if (s.productTypes.length === 0) {
+        // Unclassified — independent toggle, unaffected by the type chips.
+        return showUnclassified;
+      }
+      if (
+        selectedProductTypes.size > 0 &&
+        !s.productTypes.some((t) => selectedProductTypes.has(t))
+      ) {
+        return false;
+      }
+
+      // 3. Secondary software filter — only constrains signals that name a
+      // competitor in an in-scope product type; others pass untouched.
+      const inScope = s.detectedSoftware.filter(
+        (d) => d.isCompetitor && d.productTypes.some(typeActive)
+      );
+      if (
+        inScope.length > 0 &&
+        !inScope.some((d) => effectiveSoftware.has(d.name))
+      ) {
+        return false;
+      }
+      return true;
     });
-  }, [allSignals, selectedSoftware, selectedTypes]);
+  }, [
+    allSignals,
+    selectedTypes,
+    selectedProductTypes,
+    showUnclassified,
+    effectiveSoftware,
+    typeActive,
+  ]);
 
   const groups = React.useMemo<CompanyGroup[]>(
     () => groupSignalsByCompany(filtered),
     [filtered]
   );
-
-  const softwareCounts = React.useMemo(() => {
-    return CAM_SOFTWARE_NAMES.map((name) => ({
-      name,
-      count: allSignals.filter((s) =>
-        s.detectedSoftware.some(
-          (sw) =>
-            sw.name.toLowerCase().includes(name.toLowerCase()) ||
-            name.toLowerCase().includes(sw.name.toLowerCase())
-        )
-      ).length,
-    }));
-  }, [allSignals]);
 
   const typeCounts = React.useMemo(() => {
     const counts: Record<string, number> = {};
@@ -135,8 +205,18 @@ export function SignalFeed() {
     setCenter({ location, radius });
   };
 
+  const toggleProductType = (id: ProductTypeId) => {
+    setSelectedProductTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Track deselection: a name present in the set means the chip is turned off.
   const toggleSoftware = (name: string) => {
-    setSelectedSoftware((prev) => {
+    setDeselectedSoftware((prev) => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
@@ -162,14 +242,29 @@ export function SignalFeed() {
         onPull={handlePull}
       />
 
+      <ProductTypeFilter
+        options={productTypeCounts}
+        selected={selectedProductTypes}
+        onToggle={toggleProductType}
+        onSelectAll={() =>
+          setSelectedProductTypes(new Set(ALL_PRODUCT_TYPES.map((t) => t.id)))
+        }
+        onClear={() => setSelectedProductTypes(new Set())}
+        unclassifiedCount={unclassifiedCount}
+        showUnclassified={showUnclassified}
+        onToggleUnclassified={() => setShowUnclassified((v) => !v)}
+      />
+
       <div className="grid md:grid-cols-3 gap-4">
         <div className="md:col-span-2">
           <SoftwareFilter
             options={softwareCounts}
-            selected={selectedSoftware}
+            selected={effectiveSoftware}
             onToggle={toggleSoftware}
-            onSelectAll={() => setSelectedSoftware(new Set([...CAM_SOFTWARE_NAMES]))}
-            onClear={() => setSelectedSoftware(new Set())}
+            onSelectAll={() => setDeselectedSoftware(new Set())}
+            onClear={() =>
+              setDeselectedSoftware(new Set(softwareCounts.map((o) => o.name)))
+            }
           />
         </div>
         <SignalTypeFilter
