@@ -19,14 +19,13 @@
 import type { Contact } from "@/types/contact";
 import type { Signal } from "@/types/signal";
 import {
-  detectCamMentions,
   industryFromNaics,
   isCamRelevant,
   scoreSignal,
   summarize,
 } from "./extract";
 import { regionForCode } from "./state-codes";
-import { classifyText } from "@/lib/catalog";
+import { classifyText, legacyCamCount } from "@/lib/catalog";
 import {
   enrichCompanies,
   enrichContacts,
@@ -359,8 +358,11 @@ export async function fetchZoomInfoSignals(
   // Rank by fit so contact-enrichment credits go to the best accounts first:
   // CAM/CAD detection, then headcount.
   const ranked = [...companies].sort((a, b) => {
-    const techA = detectCamMentions(a.technologies.join(", ")).length;
-    const techB = detectCamMentions(b.technologies.join(", ")).length;
+    // Rank by the count of legacy CAM/CAD detections (parity-equal to the old
+    // detectCamMentions length; draft seed products are excluded so they cannot
+    // shift ranking). Ranking generalization across all 7 types is Step D.
+    const techA = legacyCamCount(a.technologies.join(", "));
+    const techB = legacyCamCount(b.technologies.join(", "));
     if (techA !== techB) return techB - techA;
     return (b.employeeCount ?? 0) - (a.employeeCount ?? 0);
   });

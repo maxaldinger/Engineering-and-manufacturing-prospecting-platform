@@ -136,6 +136,29 @@ export function productTypesForText(text: string): ProductTypeId[] {
   return classifyText(text).productTypes;
 }
 
+// The set the legacy detectCamMentions covered is exactly the catalog's
+// non-draft entries: the 10 CAM tools + CATIA/Inventor + the SolidWorks /
+// CAMWorks / SOLIDWORKS CAM portfolio (15 names). The draft seed products
+// (Ansys, Creo, Stratasys, ...) are NOT in it.
+const LEGACY_DETECTABLE_NAMES = new Set<string>([
+  ...(COMPETITORS as readonly CompetitorProduct[])
+    .filter((c) => !c.draft)
+    .map((c) => c.name),
+  ...PORTFOLIO.map((p) => p.name),
+]);
+
+// Count of detections restricted to that legacy set — exactly parity-equal to
+// the old detectCamMentions(text).length (proven in detection.test.ts). Used
+// for ZoomInfo company ranking so the oracle can be retired from production
+// without shifting ranking. Excluding the draft products is what keeps it
+// parity-equal; a raw detectProducts().length would over-count. Generalizing
+// ranking across all 7 product types is a Step D decision under visible review;
+// this is the parity-preserving shim until then.
+export function legacyCamCount(text: string): number {
+  return detectProducts(text).filter((d) => LEGACY_DETECTABLE_NAMES.has(d.name))
+    .length;
+}
+
 // Displacement fit for a detected competitor. Preserves the legacy
 // getReplacementFor semantics: exact name match, then substring fallback.
 // Viewed through the CompetitorProduct interface so `fit` reads as optional
