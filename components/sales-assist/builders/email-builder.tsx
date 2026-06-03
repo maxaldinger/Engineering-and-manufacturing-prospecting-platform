@@ -11,7 +11,7 @@ import {
   hasContext,
   type UniversalContext,
 } from "./universal-input";
-import type { Tone, Methodology, ActiveCompanyContext } from "@/lib/hrs-context";
+import type { Tone, Methodology, ActiveCompanyContext } from "@/lib/sales-context";
 
 interface Props {
   tone: Tone;

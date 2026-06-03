@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import type { Tab, Tone, Methodology, ActiveCompanyContext } from "@/lib/hrs-context";
+import type { Tab, Tone, Methodology, ActiveCompanyContext } from "@/lib/sales-context";
 
 interface RunArgs {
   tab: Tab;

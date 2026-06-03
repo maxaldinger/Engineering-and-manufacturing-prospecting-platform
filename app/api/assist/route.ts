@@ -6,7 +6,7 @@ import {
   type Tone,
   type Methodology,
   type ActiveCompanyContext,
-} from "@/lib/hrs-context";
+} from "@/lib/sales-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

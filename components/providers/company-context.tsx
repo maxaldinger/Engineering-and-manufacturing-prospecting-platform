@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import type { ActiveCompanyContext } from "@/lib/hrs-context";
+import type { ActiveCompanyContext } from "@/lib/sales-context";
 
 interface ContextValue {
   active: ActiveCompanyContext | null;

@@ -8,7 +8,7 @@ import {
   ClipboardList,
   Wrench,
 } from "lucide-react";
-import type { Tab } from "@/lib/hrs-context";
+import type { Tab } from "@/lib/sales-context";
 
 interface EmptyStateProps {
   onQuick: (tab: Tab, seed: string) => void;

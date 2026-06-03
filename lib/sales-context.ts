@@ -1,4 +1,5 @@
 import { PRODUCT_FIT, getReplacementFor } from "./product-fit";
+import { ALL_PRODUCT_TYPES, COMPETITORS } from "./catalog";
 
 export type Tab =
   | "Ask Anything"
@@ -30,24 +31,19 @@ export interface BuildSystemPromptArgs {
   company?: ActiveCompanyContext | null;
 }
 
-const HRS_PRODUCT_LINE = `HRS sells:
-- SOLIDWORKS (CAD)
-- CAMWorks (CAM, native to SOLIDWORKS)
-- 3DEXPERIENCE Works (PLM cloud platform)
-- SOLIDWORKS Simulation
-- SOLIDWORKS Electrical
-- SOLIDWORKS Composer (technical communication)
-- DriveWorks (design automation)
-- Hardware: Markforged industrial 3D printers, HP MJF systems, Artec 3D scanners
-- Training, implementation services, support
+// Product line, derived from the catalog so it stays in sync as the portfolio
+// changes: adding a product type or a competitor updates this automatically,
+// no edits here. The brand framing around it lives in buildSystemPrompt and is
+// rewritten in Step E2.
+function buildProductLine(): string {
+  const portfolio = ALL_PRODUCT_TYPES.filter((t) => t.ourProducts.length > 0)
+    .map((t) => `- ${t.label}: ${t.ourProducts.join(", ")}`)
+    .join("\n");
+  const competitors = COMPETITORS.map((c) => c.name).join(", ");
+  return `Portfolio by product type:\n${portfolio}\n\nCommon competitors detected in the field: ${competitors}.`;
+}
 
-HRS competes with:
-- Autodesk (Inventor, Fusion 360, HSMWorks)
-- Mastercam (CNC Software, Inc.)
-- GibbsCAM, Esprit, NX CAM, Edgecam, FeatureCAM
-- Hexagon (PC-DMIS, Edgecam)
-- PTC Creo
-- Siemens NX`;
+const PRODUCT_LINE = buildProductLine();
 
 const TAB_INSTRUCTIONS: Record<Tab, string> = {
   "Ask Anything":
@@ -123,7 +119,7 @@ ${fitBlocks ? `- HRS replacement mapping:\n${fitBlocks}` : ""}`;
 
   return `You are an AI sales engineer for Hawk Ridge Systems (HRS) reps. HRS is the largest SOLIDWORKS reseller in North America.
 
-${HRS_PRODUCT_LINE}
+${PRODUCT_LINE}
 
 The current rep is in ${tone} mode using the ${methodology} sales methodology.
 

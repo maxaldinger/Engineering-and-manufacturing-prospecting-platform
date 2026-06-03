@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { Tab } from "@/lib/hrs-context";
+import type { Tab } from "@/lib/sales-context";
 
 interface TabBarProps {
   active: Tab;

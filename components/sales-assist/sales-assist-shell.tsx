@@ -5,7 +5,7 @@ import { TabBar } from "./tab-bar";
 import { ToneMethodologySelector } from "./tone-methodology-selector";
 import { ActiveCompanyBanner } from "./active-company-banner";
 import { useCompanyContext } from "@/components/providers/company-context";
-import type { Tab, Tone, Methodology } from "@/lib/hrs-context";
+import type { Tab, Tone, Methodology } from "@/lib/sales-context";
 
 import { AskAnythingBuilder } from "./builders/ask-anything-builder";
 import { EmailBuilder } from "./builders/email-builder";

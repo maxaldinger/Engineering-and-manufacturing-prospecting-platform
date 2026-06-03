@@ -19,8 +19,9 @@ export interface CompanyGroup {
   oldestPostedAgo: string;
   // DEAD as of Step D3: its only reader, the signal-row "CAM-relevant" badge,
   // was retired (productTypes chips replaced it). Still computed below but
-  // unread. Remove in Step F (Signal.camRelevant itself is still used by the
-  // aggregate camRelevantCount meta, so leave that until F too).
+  // unread. Remove in Step F. NOTE: Signal.camRelevant (the per-signal field) is
+  // a PERMANENT survivor — it feeds the internal-only camRelevantCount telemetry
+  // in the aggregate meta, so it is never deleted.
   camRelevant: boolean;
   manufacturingRelevant: boolean;
 }

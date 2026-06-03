@@ -1,7 +1,7 @@
 "use client";
 
 import { Select } from "@/components/ui/select";
-import type { Tone, Methodology } from "@/lib/hrs-context";
+import type { Tone, Methodology } from "@/lib/sales-context";
 
 interface Props {
   tone: Tone;
