@@ -6,9 +6,12 @@ import { fetchUSAspendingAwards } from "./usaspending";
 import { fetchNewsSignalsForRegion } from "./rss-news";
 import { fetchCncJobsForRegion } from "./greenhouse-jobs";
 import { fetchZoomInfoSignals, isZoomInfoConfigured } from "./zoominfo";
+import { fetchAdzunaJobs, isAdzunaConfigured } from "./adzuna";
 import { ALL_REGIONS, regionForCode } from "./state-codes";
+import { buildDiscoveryQuery } from "@/lib/discovery";
 
 const ZOOMINFO_SOURCE_NAME = "ZoomInfo (territory companies + contacts)";
+const ADZUNA_SOURCE_NAME = "Adzuna (job postings — primary free jobs)";
 
 export interface AggregateMeta {
   region?: { code: string; name: string; country: "US" | "CA" };
@@ -114,15 +117,25 @@ export async function aggregateSignals(
     return { signals: [], meta };
   }
 
-  // ZoomInfo is the primary source (real companies + contacts) when the rep
-  // has configured credentials. It runs alongside the free public sources.
   const zoomInfoConfigured = isZoomInfoConfigured();
+  const adzunaConfigured = isAdzunaConfigured();
 
   const tasks: { name: string; run: () => Promise<Signal[]> }[] = [];
   if (zoomInfoConfigured) {
     tasks.push({
       name: ZOOMINFO_SOURCE_NAME,
       run: () => fetchZoomInfoSignals(region.code, region.country),
+    });
+  }
+  if (adzunaConfigured) {
+    // Step 4 baseline: the CAM route's terms. Step 5 routes this by the selected
+    // product (buildDiscoveryQuery(product)). Adzuna is the geo-capable jobs
+    // source, so it receives the full place + radius.
+    const baseline = buildDiscoveryQuery("cam");
+    const terms = [...baseline.softwareKeywords, ...baseline.roles];
+    tasks.push({
+      name: ADZUNA_SOURCE_NAME,
+      run: () => fetchAdzunaJobs(place, radius, { terms }),
     });
   }
   tasks.push(
@@ -146,11 +159,16 @@ export async function aggregateSignals(
         const sigs = await task.run();
         return { name: task.name, signals: sigs, status: "ok" as const };
       } catch (err: any) {
+        const message = err?.message ?? "Unknown error";
+        // Log WHICH dependency degraded and WHY. The source is also surfaced as
+        // an "error" status (count omitted) so a degraded source is never
+        // mistaken for an empty territory — see SourceStatusBar.
+        console.warn(`aggregate: source "${task.name}" degraded: ${message}`);
         return {
           name: task.name,
           signals: [] as Signal[],
           status: "error" as const,
-          error: err?.message ?? "Unknown error",
+          error: message,
         };
       }
     })
@@ -178,6 +196,18 @@ export async function aggregateSignals(
   if (!zoomInfoConfigured) {
     meta.sources.unshift({
       name: ZOOMINFO_SOURCE_NAME,
+      status: "skipped",
+      count: 0,
+    });
+  }
+
+  // Adzuna is the primary free jobs source. When its keys are absent, surface it
+  // as SKIPPED (available, not wired) rather than silently missing — and at the
+  // front, since "skipped" here means the primary jobs feed is off. This is
+  // distinct from an "error" status, which means it was tried and degraded.
+  if (!adzunaConfigured) {
+    meta.sources.unshift({
+      name: ADZUNA_SOURCE_NAME,
       status: "skipped",
       count: 0,
     });

@@ -17,6 +17,7 @@ import {
   Radio,
   AlertTriangle,
   CheckCircle2,
+  MinusCircle,
   Search,
   ExternalLink,
 } from "lucide-react";
@@ -414,18 +415,50 @@ function SourceStatusBar({
         </span>
       </div>
       <div className="flex items-center gap-3 flex-wrap text-[11px]">
-        {sources.map((s) => (
-          <span key={s.name} className="inline-flex items-center gap-1.5">
-            {s.status === "ok" ? (
-              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-            ) : (
-              <AlertTriangle className="h-3 w-3 text-amber-600" />
-            )}
-            <span className="text-text-muted">
-              {s.name}: <span className="text-text-secondary font-medium">{s.count}</span>
+        {sources.map((s) => {
+          // Three distinct states. ok shows a count (0 = genuinely empty here);
+          // skipped = available but not wired (no key); error = tried and
+          // degraded (throttle / quota / API failure). Keeping error separate
+          // from ok-0 is what stops a quota hit from reading as an empty
+          // territory.
+          if (s.status === "ok") {
+            return (
+              <span key={s.name} className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                <span className="text-text-muted">
+                  {s.name}:{" "}
+                  <span className="text-text-secondary font-medium">{s.count}</span>
+                </span>
+              </span>
+            );
+          }
+          if (s.status === "skipped") {
+            return (
+              <span
+                key={s.name}
+                title="Available but not configured (no API key) — not part of this pull."
+                className="inline-flex items-center gap-1.5"
+              >
+                <MinusCircle className="h-3 w-3 text-text-muted" />
+                <span className="text-text-muted">
+                  {s.name}: <span className="font-medium">skipped</span>
+                </span>
+              </span>
+            );
+          }
+          return (
+            <span
+              key={s.name}
+              title={s.error || "Source request failed."}
+              className="inline-flex items-center gap-1.5"
+            >
+              <AlertTriangle className="h-3 w-3 text-red-600" />
+              <span className="text-red-700">
+                {s.name}: <span className="font-medium">unavailable</span>
+              </span>
             </span>
-          </span>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

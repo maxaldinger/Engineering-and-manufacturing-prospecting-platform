@@ -20,7 +20,12 @@ export interface CompanyGroup {
   manufacturingRelevant: boolean;
 }
 
-function normalize(name: string): string {
+// Grouping key for a company name: lowercased, punctuation collapsed, and legal
+// suffixes (Inc / LLC / Corp / Co / Ltd ...) removed, so suffix variants of one
+// company share a key. Exported so the company-alias layer (lib/signal-sources/
+// company.ts) keys its alias map the same way. Acronym/short-form variants that
+// survive this (e.g. "LMCO") are handled by that alias layer before grouping.
+export function companyKey(name: string): string {
   return name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
@@ -100,7 +105,7 @@ export function groupSignalsByCompany(signals: Signal[]): CompanyGroup[] {
   const groups = new Map<string, CompanyGroup>();
 
   for (const s of signals) {
-    const key = normalize(s.company);
+    const key = companyKey(s.company);
     if (!key) continue;
     let group = groups.get(key);
     if (!group) {
