@@ -113,7 +113,7 @@ function awardToSignal(a: USAspendingAward): Signal | null {
     sourceLabel: "USAspending.gov",
     sourceUrl: `https://www.usaspending.gov/award/${a.generated_internal_id ?? ""}`,
     postedAgo: relativeAge(lastModifiedDate),
-    signalStrength: scoreSignal({ hasCam, amount, daysOld }) + (manufacturingRelevant ? 3 : 0),
+    signalStrength: scoreSignal({ hasCam, productTypes, amount, daysOld }) + (manufacturingRelevant ? 3 : 0),
     contacts: [],
     manufacturingRelevant,
   };

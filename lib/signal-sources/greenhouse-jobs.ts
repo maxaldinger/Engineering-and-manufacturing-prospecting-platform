@@ -205,7 +205,7 @@ function jobToSignal(
     sourceLabel: `Greenhouse · ${company.name} careers`,
     sourceUrl: job.absolute_url,
     postedAgo: relativeAge(pubDate),
-    signalStrength: scoreSignal({ hasCam, daysOld }) + (camRelevant ? 5 : 0),
+    signalStrength: scoreSignal({ hasCam, productTypes, daysOld }) + (camRelevant ? 5 : 0),
     contacts: [],
     camRelevant,
   };

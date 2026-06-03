@@ -246,6 +246,7 @@ function rssItemToSignal(
     signalStrength: scoreSignal({
       hasCam: detectedSoftware.length > 0,
       hasCadOnly: detectedSoftware.some((d) => /solidworks|catia|inventor/i.test(d.name)) && !detectedSoftware.some((d) => /mastercam|fusion|hsmworks|gibbscam|esprit|bobcad|nx cam|edgecam|surfcam|featurecam/i.test(d.name)),
+      productTypes,
       daysOld,
     }),
     contacts: [],

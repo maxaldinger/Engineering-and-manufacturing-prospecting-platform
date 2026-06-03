@@ -1,4 +1,5 @@
 import type { Signal } from "@/types/signal";
+import type { ProductTypeId } from "@/types/product";
 
 export type Urgency = "high" | "medium" | "low";
 
@@ -13,6 +14,7 @@ export interface CompanyGroup {
   maxStrength: number;
   urgency: Urgency;
   detectedSoftware: string[];
+  productTypes: ProductTypeId[];
   oneLiner: string;
   oldestPostedAgo: string;
   camRelevant: boolean;
@@ -114,6 +116,7 @@ export function groupSignalsByCompany(signals: Signal[]): CompanyGroup[] {
         maxStrength: s.signalStrength,
         urgency: urgencyFor(s.signalStrength),
         detectedSoftware: [],
+        productTypes: [],
         oneLiner: "",
         oldestPostedAgo: s.postedAgo,
         camRelevant: false,
@@ -130,6 +133,9 @@ export function groupSignalsByCompany(signals: Signal[]): CompanyGroup[] {
 
   for (const g of groups.values()) {
     g.detectedSoftware = dedupeSoftware(g.signals);
+    g.productTypes = Array.from(
+      new Set(g.signals.flatMap((s) => s.productTypes))
+    );
     g.industry = pickIndustry(g.signals);
     g.urgency = urgencyFor(g.maxStrength);
     g.oneLiner = buildOneLiner(g.topSignal);

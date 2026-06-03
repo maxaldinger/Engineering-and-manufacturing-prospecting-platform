@@ -25,7 +25,7 @@ import {
   summarize,
 } from "./extract";
 import { regionForCode } from "./state-codes";
-import { classifyText, legacyCamCount } from "@/lib/catalog";
+import { classifyText, rankingScore } from "@/lib/catalog";
 import {
   enrichCompanies,
   enrichContacts,
@@ -250,7 +250,7 @@ function companyToSignal(
 
   // Score: CAM detection is the strongest displacement signal; CAD is warm;
   // size and available contacts add a little.
-  let strength = scoreSignal({ hasCam, hasCadOnly: hasCad && !hasCam });
+  let strength = scoreSignal({ hasCam, hasCadOnly: hasCad && !hasCam, productTypes });
   if (company.employeeCount) {
     if (company.employeeCount >= 200) strength += 6;
     else if (company.employeeCount >= 50) strength += 3;
@@ -358,11 +358,11 @@ export async function fetchZoomInfoSignals(
   // Rank by fit so contact-enrichment credits go to the best accounts first:
   // CAM/CAD detection, then headcount.
   const ranked = [...companies].sort((a, b) => {
-    // Rank by the count of legacy CAM/CAD detections (parity-equal to the old
-    // detectCamMentions length; draft seed products are excluded so they cannot
-    // shift ranking). Ranking generalization across all 7 types is Step D.
-    const techA = legacyCamCount(a.technologies.join(", "));
-    const techB = legacyCamCount(b.technologies.join(", "));
+    // Rank by weighted relevance across all product types — same TYPE_WEIGHTS
+    // that drive scoreSignal, so a CAM competitor (25) outranks a Simulation
+    // tool (15) for enrichment priority. CAM-only / empty order is preserved.
+    const techA = rankingScore(a.technologies.join(", "));
+    const techB = rankingScore(b.technologies.join(", "));
     if (techA !== techB) return techB - techA;
     return (b.employeeCount ?? 0) - (a.employeeCount ?? 0);
   });

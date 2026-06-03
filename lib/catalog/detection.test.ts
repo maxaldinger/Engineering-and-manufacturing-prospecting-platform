@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   detectProducts,
   productTypesForText,
-  legacyCamCount,
   COMPETITORS,
   PORTFOLIO,
   type CatalogProductName,
@@ -61,24 +60,6 @@ describe("known-CAM inputs still classify as CAM (parity of intent)", () => {
       expect(types.has("cam")).toBe(true);
     });
   }
-});
-
-describe("ranking count parity: legacyCamCount === detectCamMentions length", () => {
-  for (const input of CAM_INPUTS) {
-    it(`count matches oracle for: "${input.slice(0, 40)}..."`, () => {
-      expect(legacyCamCount(input)).toBe(detectCamMentions(input).length);
-    });
-  }
-
-  it("draft seed products do not inflate the ranking count", () => {
-    // detectProducts sees Mastercam + Ansys(draft) + SolidWorks + Creo(draft);
-    // ranking must count only the 2 legacy detections, matching the oracle.
-    const input = "Shop runs Mastercam and Ansys, plus SOLIDWORKS and Creo.";
-    expect(detectCamMentions(input).length).toBe(2); // Mastercam, SolidWorks
-    expect(legacyCamCount(input)).toBe(2);
-    // A raw detectProducts().length would over-count — the bug this avoids:
-    expect(detectProducts(input).length).toBe(4);
-  });
 });
 
 describe("keyword uniqueness: one keyword maps to exactly one product", () => {

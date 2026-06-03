@@ -126,6 +126,12 @@ export const PRODUCT_TYPES = [
     ourProducts: ["Training & Implementation", "Technical Support"],
     // Services type: relevance-driven, not competitor-software-driven, so it
     // intentionally has no entries in COMPETITORS. Starter set — draft.
+    //
+    // Future (out of scope for this refactor): real service-bureau competitors
+    // (Xometry, Protolabs, Fictiv) DO exist and would be added here as draft
+    // entries once a detection path for "prospect uses [bureau]" signals is
+    // built. That is not fabrication — they are real companies — it is just a
+    // different signal type than installed-software detection.
     relevanceKeywords: [
       "implementation services",
       "onboarding",

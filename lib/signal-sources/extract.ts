@@ -1,3 +1,6 @@
+import type { ProductTypeId } from "@/types/product";
+import { TYPE_WEIGHTS } from "@/lib/catalog/weights";
+
 // Word-boundary keyword detection. Variants per software prevent false
 // positives (e.g. "esprit" inside "espresso" won't match because we
 // require word boundaries around the alias).
@@ -251,12 +254,21 @@ export function summarize(text: string, max = 220): string {
 export function scoreSignal(opts: {
   hasCam?: boolean;
   hasCadOnly?: boolean;
+  productTypes?: ProductTypeId[];
   amount?: number;
   daysOld?: number;
 }): number {
   let score = 50;
-  if (opts.hasCam) score += 25;
-  else if (opts.hasCadOnly) score += 10;
+  // CAM/CAD axis — preserved exactly (TYPE_WEIGHTS.cam/.cad = 25/10).
+  if (opts.hasCam) score += TYPE_WEIGHTS.cam;
+  else if (opts.hasCadOnly) score += TYPE_WEIGHTS.cad;
+  // Additive contribution from the other product types. cam/cad are excluded
+  // here (scored by the branch above), so a CAM-only or CAD-only signal is
+  // unchanged; non-CAM types contribute where they previously contributed zero.
+  for (const t of opts.productTypes ?? []) {
+    if (t === "cam" || t === "cad") continue;
+    score += TYPE_WEIGHTS[t] ?? 0;
+  }
   if (opts.amount && opts.amount > 1_000_000) score += 5;
   if (opts.amount && opts.amount > 10_000_000) score += 5;
   if (opts.daysOld !== undefined) {

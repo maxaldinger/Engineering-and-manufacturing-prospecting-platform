@@ -5,6 +5,7 @@ import type {
   CompetitorProduct,
 } from "@/types/product";
 import { PRODUCT_TYPES, COMPETITORS, PORTFOLIO } from "./data";
+import { TYPE_WEIGHTS } from "./weights";
 
 // Re-export raw data + schema types so consumers import everything from
 // "@/lib/catalog".
@@ -136,27 +137,17 @@ export function productTypesForText(text: string): ProductTypeId[] {
   return classifyText(text).productTypes;
 }
 
-// The set the legacy detectCamMentions covered is exactly the catalog's
-// non-draft entries: the 10 CAM tools + CATIA/Inventor + the SolidWorks /
-// CAMWorks / SOLIDWORKS CAM portfolio (15 names). The draft seed products
-// (Ansys, Creo, Stratasys, ...) are NOT in it.
-const LEGACY_DETECTABLE_NAMES = new Set<string>([
-  ...(COMPETITORS as readonly CompetitorProduct[])
-    .filter((c) => !c.draft)
-    .map((c) => c.name),
-  ...PORTFOLIO.map((p) => p.name),
-]);
-
-// Count of detections restricted to that legacy set — exactly parity-equal to
-// the old detectCamMentions(text).length (proven in detection.test.ts). Used
-// for ZoomInfo company ranking so the oracle can be retired from production
-// without shifting ranking. Excluding the draft products is what keeps it
-// parity-equal; a raw detectProducts().length would over-count. Generalizing
-// ranking across all 7 product types is a Step D decision under visible review;
-// this is the parity-preserving shim until then.
-export function legacyCamCount(text: string): number {
-  return detectProducts(text).filter((d) => LEGACY_DETECTABLE_NAMES.has(d.name))
-    .length;
+// Weighted relevance of a text for ZoomInfo company ranking. Each detected
+// product contributes the weight of its highest-weighted product type, using
+// the SAME TYPE_WEIGHTS as scoreSignal — so a CAM competitor (25) outranks a
+// Simulation tool (15) for enrichment priority. CAM-only / empty order is
+// preserved: CAM tools each add 25, so the key stays monotonic in CAM tool
+// count (a 2-CAM company outranks a 1-CAM company, as before).
+export function rankingScore(text: string): number {
+  return detectProducts(text).reduce((sum, d) => {
+    const weights = d.productTypes.map((t) => TYPE_WEIGHTS[t]);
+    return sum + (weights.length ? Math.max(...weights) : 0);
+  }, 0);
 }
 
 // Displacement fit for a detected competitor. Preserves the legacy
