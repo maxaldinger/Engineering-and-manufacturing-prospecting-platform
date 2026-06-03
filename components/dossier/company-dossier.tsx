@@ -29,24 +29,18 @@ import {
   type TargetContact,
 } from "@/lib/linkedin-targets";
 import { PRODUCT_TYPE_BY_ID } from "@/lib/catalog";
+import {
+  type AiBrief,
+  SYSTEM_PROMPT,
+  buildSignalDigest,
+  parseBrief,
+} from "./brief";
 import type { CompanyGroup, Urgency } from "@/lib/signal-grouping";
 import type { Signal } from "@/types/signal";
 import type { Contact } from "@/types/contact";
 
 interface CompanyDossierProps {
   group: CompanyGroup;
-}
-
-interface AiBrief {
-  score: number;
-  scoreLabel: string;
-  whyCamworks: string;
-  overview: string;
-  camworksFit: string;
-  manufacturingChallenge: string;
-  outreachSubject: string;
-  outreachBody: string;
-  talkingPoints: string[];
 }
 
 // Session-scoped cache so re-expanding the same row reuses the brief
@@ -60,90 +54,6 @@ function cacheKey(group: CompanyGroup): string {
     .sort()
     .join(",");
   return `${group.company}|${group.state}|${ids}`;
-}
-
-const SYSTEM_PROMPT = `You are a sales intelligence analyst at Hawk Ridge Systems (HRS), the largest SOLIDWORKS reseller in North America. HRS sells SOLIDWORKS, CAMWorks, SOLIDWORKS Simulation, SOLIDWORKS Electrical, SOLIDWORKS PDM Professional, 3DEXPERIENCE Works, DriveWorks, Markforged hardware, HP MJF, Artec scanners, plus implementation and training.
-
-You will receive structured signal data scraped from public sources for one prospect company. Reply with ONLY a single JSON object. No prose, no markdown fences. Use this exact shape:
-
-{
-  "score": <integer 0-100. Higher = better fit. Base on number of signals, recency, and CAM detection.>,
-  "scoreLabel": "PRIME TARGET" | "WARM TARGET" | "COLD TARGET",
-  "whyCamworks": "<1-2 sentence pitch on why CAMWorks plus SOLIDWORKS is the right fit specifically for this prospect, anchored on their stack and pressures.>",
-  "overview": "<2-3 sentence company summary describing their situation, why they are on the radar, and their manufacturing pressures based on the actual signals.>",
-  "camworksFit": "<3-4 sentences on how CAMWorks, SOLIDWORKS, and 3DEXPERIENCE Works specifically solve their problem. Name the products and the capabilities.>",
-  "manufacturingChallenge": "<3-4 sentences on the technical and business problem they are facing. Reference real signals (contract programs, hiring patterns, news mentions).>",
-  "outreachSubject": "<short cold email subject line, 6-10 words>",
-  "outreachBody": "<3-5 sentence cold email referencing one specific signal and one HRS capability. No greeting fluff. No em dashes.>",
-  "talkingPoints": ["<bullet 1>", "<bullet 2>", "<bullet 3>", "<bullet 4>", "<bullet 5>"]
-}
-
-Hard rules:
-- Reference only the signals in the input data. Do not invent contracts, dollar amounts, names, dates, or program names.
-- If the signals are thin, write shorter sections rather than padding with invention.
-- talkingPoints must be specific to this company, not generic platitudes. Each point should reference a signal.
-- No em dashes anywhere. Use commas or restructure.
-- scoreLabel: PRIME TARGET if score >= 75, WARM TARGET if 50-74, COLD TARGET below 50.`;
-
-function buildSignalDigest(group: CompanyGroup): string {
-  const lines: string[] = [];
-  lines.push(`Prospect: ${group.company}`);
-  lines.push(`Region: ${group.city || group.state}, ${group.state}`);
-  lines.push(`Industry: ${group.industry}`);
-  if (group.detectedSoftware.length) {
-    lines.push(`Detected software in public text: ${group.detectedSoftware.join(", ")}`);
-  } else {
-    lines.push("No CAM/CAD software detected in public text.");
-  }
-
-  const groups: { label: string; type: Signal["signalType"] }[] = [
-    { label: "Federal Contract Awards", type: "Gov Contract" },
-    { label: "Open Job Postings", type: "Job Posting" },
-    { label: "News Mentions", type: "News" },
-    { label: "Tech Adoption", type: "Tech Adoption" },
-  ];
-
-  for (const g of groups) {
-    const entries = group.signals.filter((s) => s.signalType === g.type);
-    if (entries.length === 0) continue;
-    lines.push(`\n${g.label} (${entries.length}):`);
-    for (const s of entries.slice(0, 12)) {
-      const sw = s.detectedSoftware
-        .filter((x) => x.name)
-        .map((x) => x.name)
-        .join(", ");
-      lines.push(
-        `- ${s.title} | ${s.postedAgo} | ${s.sourceLabel}${sw ? ` | software in text: ${sw}` : ""}\n  ${s.description.slice(0, 220)}`
-      );
-    }
-  }
-  return lines.join("\n");
-}
-
-function parseBrief(raw: string): AiBrief | null {
-  if (!raw) return null;
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start < 0 || end < 0) return null;
-  try {
-    const parsed = JSON.parse(raw.slice(start, end + 1));
-    if (!parsed || typeof parsed !== "object") return null;
-    return {
-      score: Number(parsed.score) || 0,
-      scoreLabel: String(parsed.scoreLabel ?? ""),
-      whyCamworks: String(parsed.whyCamworks ?? ""),
-      overview: String(parsed.overview ?? ""),
-      camworksFit: String(parsed.camworksFit ?? ""),
-      manufacturingChallenge: String(parsed.manufacturingChallenge ?? ""),
-      outreachSubject: String(parsed.outreachSubject ?? ""),
-      outreachBody: String(parsed.outreachBody ?? ""),
-      talkingPoints: Array.isArray(parsed.talkingPoints)
-        ? parsed.talkingPoints.map((s: unknown) => String(s))
-        : [],
-    };
-  } catch {
-    return null;
-  }
 }
 
 const URGENCY_BADGE: Record<Urgency, string> = {
@@ -297,18 +207,18 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
 
   return (
     <div className="space-y-5">
-      {/* 1. Why CAMWorks callout */}
+      {/* 1. Recommended Fit callout */}
       <div className="rounded-lg border-l-4 border-primary border-y border-r border-border bg-primary-subtle/30 px-4 py-3">
         <p className="text-[10px] uppercase tracking-widest font-semibold text-primary mb-1">
-          Why CAMWorks
+          Recommended Fit
         </p>
         {briefStreaming && !brief ? (
           <p className="text-sm text-text-muted inline-flex items-center gap-2">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             Compiling intel from {group.signals.length} live signal{group.signals.length === 1 ? "" : "s"}...
           </p>
-        ) : brief?.whyCamworks ? (
-          <p className="text-sm text-text-primary leading-relaxed">{brief.whyCamworks}</p>
+        ) : brief?.whyFit ? (
+          <p className="text-sm text-text-primary leading-relaxed">{brief.whyFit}</p>
         ) : briefError ? (
           <p className="text-sm text-red-700">{briefError}</p>
         ) : (
@@ -419,9 +329,9 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
           {brief && (
             <div className="grid md:grid-cols-2 gap-4">
               <CalloutBox
-                title="CAMWorks Fit"
+                title="Portfolio Fit"
                 tone="primary"
-                content={brief.camworksFit}
+                content={brief.portfolioFit}
               />
               <CalloutBox
                 title="Manufacturing Challenge"

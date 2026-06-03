@@ -39,7 +39,7 @@ type Priority = "High" | "Medium" | "Low";
 interface LouIssue {
   id: string;
   businessIssue: string;
-  hrsResponse: string;
+  recommendedResponse: string;
   category: string;
   priority: Priority;
   timeframe: string;
@@ -56,7 +56,7 @@ const CATEGORY_OPTIONS = [
   "Training & Services",
 ];
 
-const LOU_SYSTEM_PROMPT = `You are converting a sales rep's discovery notes into a Letter of Understanding for Hawk Ridge Systems.
+const LOU_SYSTEM_PROMPT = `You are converting a sales rep's discovery notes into a Letter of Understanding for a multi-product engineering-software reseller.
 
 Reply with ONLY a single JSON object, no prose, no markdown fences. Use this exact shape:
 
@@ -64,7 +64,7 @@ Reply with ONLY a single JSON object, no prose, no markdown fences. Use this exa
   "issues": [
     {
       "businessIssue": "1-3 sentence description of the prospect's pain or business problem, in their language. Quantify when the notes do.",
-      "hrsResponse": "3-5 sentence response that names the specific HRS or SOLIDWORKS product, the capability that addresses the issue, and the measurable benefit. Concrete, no fluff.",
+      "recommendedResponse": "3-5 sentence response that names the specific portfolio product, the capability that addresses the issue, and the measurable benefit. Concrete, no fluff.",
       "category": "Design" | "Manufacturing" | "Simulation" | "Electrical" | "Data Management" | "Additive / 3D Printing" | "Inspection / Scanning" | "Training & Services",
       "priority": "High" | "Medium" | "Low",
       "timeframe": "When the prospect needs this resolved or the proposed phase / pilot timeline. Use absolute dates or quarters."
@@ -102,12 +102,12 @@ function parseIssues(raw: string): LouIssue[] | null {
     const parsed = JSON.parse(raw.slice(start, end + 1));
     if (!parsed?.issues || !Array.isArray(parsed.issues)) return null;
     return parsed.issues
-      .filter((p: any) => p?.businessIssue && p?.hrsResponse)
+      .filter((p: any) => p?.businessIssue && p?.recommendedResponse)
       .map(
         (p: any): LouIssue => ({
           id: uid(),
           businessIssue: String(p.businessIssue ?? "").trim(),
-          hrsResponse: String(p.hrsResponse ?? "").trim(),
+          recommendedResponse: String(p.recommendedResponse ?? "").trim(),
           category: String(p.category ?? "Manufacturing").trim(),
           priority: ["High", "Medium", "Low"].includes(p.priority)
             ? (p.priority as Priority)
@@ -147,10 +147,10 @@ function csvEscape(value: string) {
 }
 
 function downloadCsv(rows: LouIssue[], accountName: string) {
-  const header = ["Critical Business Issue", "HRS Response", "Category", "Priority", "Timeframe"];
+  const header = ["Critical Business Issue", "Recommended Response", "Category", "Priority", "Timeframe"];
   const lines = [header.join(",")].concat(
     rows.map((r) =>
-      [r.businessIssue, r.hrsResponse, r.category, r.priority, r.timeframe]
+      [r.businessIssue, r.recommendedResponse, r.category, r.priority, r.timeframe]
         .map(csvEscape)
         .join(",")
     )
@@ -255,7 +255,7 @@ export function LouBuilder({ tone, methodology, company }: Props) {
     const blank: LouIssue = {
       id: uid(),
       businessIssue: "",
-      hrsResponse: "",
+      recommendedResponse: "",
       category: "Manufacturing",
       priority: "Medium",
       timeframe: "",
@@ -388,13 +388,13 @@ export function LouBuilder({ tone, methodology, company }: Props) {
                     <td className="px-4 py-3">
                       {editing ? (
                         <Textarea
-                          value={row.hrsResponse}
-                          onChange={(e) => updateIssue(row.id, { hrsResponse: e.target.value })}
+                          value={row.recommendedResponse}
+                          onChange={(e) => updateIssue(row.id, { recommendedResponse: e.target.value })}
                           className="min-h-[100px] text-sm"
                         />
                       ) : (
                         <p className="leading-relaxed text-text-primary whitespace-pre-wrap">
-                          {row.hrsResponse || (
+                          {row.recommendedResponse || (
                             <span className="text-text-muted italic">Empty</span>
                           )}
                         </p>

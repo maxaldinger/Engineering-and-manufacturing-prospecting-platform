@@ -1,5 +1,4 @@
-import { PRODUCT_FIT, getReplacementFor } from "./product-fit";
-import { ALL_PRODUCT_TYPES, COMPETITORS } from "./catalog";
+import { ALL_PRODUCT_TYPES, COMPETITORS, fitForPrompt } from "./catalog";
 
 export type Tab =
   | "Ask Anything"
@@ -63,14 +62,14 @@ const TAB_INSTRUCTIONS: Record<Tab, string> = {
 
 If a section has no input from the prospect yet, write 'To be confirmed with [role]' rather than inventing details.`,
   "Product Fit":
-    "Recommend the HRS product replacement for the prospect's current software, with 3 specific reasons grounded in real product differences. If a competitor mapping is provided in the active company context, anchor on those reasons.",
+    "Recommend the portfolio fit for the prospect's current software. For a validated mapping, name the replacement and give 3 specific reasons grounded in real product differences (anchor on the provided reasons). For a category-offering mapping (one that is not a validated replacement), name our product in that category and frame it as worth a conversation, without claiming it replaces their tool or asserting specific advantages.",
   Objections: `Handle the objection using the selected methodology. Four-step structure:
 1. Acknowledge the concern without dismissing it.
 2. Reframe to surface the underlying interest.
 3. Evidence with a specific proof point or comparable customer story.
 4. Advance with a small commitment that tests the reframe.`,
   Threading:
-    "Suggest 3 to 5 stakeholders to multi-thread into based on company size and detected role data. For each: role, why they matter, what message lands with them, and who in HRS should own the relationship.",
+    "Suggest 3 to 5 stakeholders to multi-thread into based on company size and detected role data. For each: role, why they matter, what message lands with them, and who on the team should own the relationship.",
   Proposal:
     "Outline structure and key sections: executive summary, situation, recommended solution, scope, timeline, investment, success metrics, next steps. Bullet points, not prose, since the rep will fill content.",
   Deck:
@@ -98,10 +97,15 @@ export function buildSystemPrompt(args: BuildSystemPromptArgs): string {
 
     const fitBlocks = company.detectedSoftware
       .map((sw) => {
-        const fit = getReplacementFor(sw);
+        const fit = fitForPrompt(sw);
         if (!fit) return null;
+        if (fit.draft) {
+          // Category-offering framing for draft (non-CAM): name our product in
+          // the category, never assert it as a validated replacement.
+          return `  ${fit.competitor} (${fit.categoryLabel}): our ${fit.categoryLabel} offering is ${fit.replacement}, worth a conversation. Not a validated replacement; do not claim it replaces their tool or assert specific advantages.`;
+        }
         const reasons = fit.reasons.map((r) => `    - ${r}`).join("\n");
-        return `  ${sw} -> ${fit.replacement}${fit.secondary ? ` (or ${fit.secondary})` : ""}\n${reasons}`;
+        return `  ${fit.competitor} -> ${fit.replacement}${fit.secondary ? ` (or ${fit.secondary})` : ""}\n${reasons}`;
       })
       .filter(Boolean)
       .join("\n");
@@ -114,10 +118,10 @@ Active prospect:
 - Detected software: ${softwareList}
 - Known contacts:
 ${contactsBlock}
-${fitBlocks ? `- HRS replacement mapping:\n${fitBlocks}` : ""}`;
+${fitBlocks ? `- Replacement mapping:\n${fitBlocks}` : ""}`;
   }
 
-  return `You are an AI sales engineer for Hawk Ridge Systems (HRS) reps. HRS is the largest SOLIDWORKS reseller in North America.
+  return `You are an AI sales engineer for a multi-product engineering-software reseller's reps. You sell the portfolio below and help displace competitor tools.
 
 ${PRODUCT_LINE}
 

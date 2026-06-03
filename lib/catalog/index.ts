@@ -163,3 +163,38 @@ export function getFitFor(name: string): CompetitorProduct["fit"] {
   );
   return sub?.fit;
 }
+
+export interface PromptFit {
+  competitor: string;
+  replacement: string;
+  secondary?: string;
+  // EMPTY for draft competitors — the structural guard below withholds them.
+  reasons: readonly string[];
+  draft: boolean;
+  // Product-type label(s) of the competitor, e.g. "Simulation" — used to frame
+  // draft mappings as a category offering rather than a validated replacement.
+  categoryLabel: string;
+}
+
+// Draft-aware fit for PROMPT injection. For a draft (unvalidated) competitor the
+// specific differentiators are WITHHELD: only the neutral competitor ->
+// replacement mapping is returned (reasons: []), so no fabricated competitive
+// claim can ever reach a prompt for the model to assert. Non-draft (CAM)
+// competitors return their real, assertable reasons.
+export function fitForPrompt(name: string): PromptFit | null {
+  const list = COMPETITORS as readonly CompetitorProduct[];
+  const c =
+    list.find((x) => x.name === name) ??
+    list.find((x) => x.fit && name.toLowerCase().includes(x.name.toLowerCase()));
+  if (!c?.fit) return null;
+  return {
+    competitor: c.name,
+    replacement: c.fit.replacement,
+    secondary: c.fit.secondary,
+    reasons: c.draft ? [] : c.fit.reasons,
+    draft: !!c.draft,
+    categoryLabel: c.productTypes
+      .map((t) => PRODUCT_TYPE_BY_ID[t]?.label ?? t)
+      .join(" / "),
+  };
+}

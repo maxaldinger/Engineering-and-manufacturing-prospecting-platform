@@ -43,7 +43,7 @@ import type {
 export { isZoomInfoConfigured } from "../zoominfo/client";
 
 // ---------------------------------------------------------------------------
-// Config (env-tunable so HRS can dial targeting + spend without code changes)
+// Config (env-tunable so the reseller can dial targeting + spend without code changes)
 // ---------------------------------------------------------------------------
 
 function envInt(name: string, def: number): number {
@@ -99,7 +99,7 @@ const DEFAULT_MFG_SIC = [
   "3820", "3821", "3823", "3825", "3827", "3829", "3841", "3845",
 ];
 
-// CAD tools HRS resells. Detecting these is a warm signal (sell them CAM to
+// CAD tools we resell. Detecting these is a warm signal (sell them CAM to
 // add to their seat), not a competitive-CAM displacement target.
 const CAD_OR_OWN = /solidworks|catia|inventor|camworks/i;
 

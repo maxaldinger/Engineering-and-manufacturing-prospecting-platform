@@ -210,7 +210,7 @@ function buildFollowUpSystem(scorecard: CriterionState[], company: ActiveCompany
   const companyLine = company
     ? `Active prospect: ${company.company} in ${company.city}${company.state ? `, ${company.state}` : ""}. Detected software: ${company.detectedSoftware.join(", ") || "unknown"}.`
     : "";
-  return `You are a sales coach for a Hawk Ridge Systems rep helping advance a deal. Use the MEDDPICC scorecard below as the source of truth on what the rep knows. Answer follow-up questions about how to advance the deal. Be specific and actionable.
+  return `You are a sales coach for a multi-product reseller rep helping advance a deal. Use the MEDDPICC scorecard below as the source of truth on what the rep knows. Answer follow-up questions about how to advance the deal. Be specific and actionable.
 
 ${companyLine}
 

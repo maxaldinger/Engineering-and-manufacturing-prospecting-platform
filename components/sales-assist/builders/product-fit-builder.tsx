@@ -26,8 +26,8 @@ export function ProductFitBuilder({ tone, methodology, company }: Props) {
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const prefix = company?.detectedSoftware?.length
-      ? `Active prospect detected software: ${company.detectedSoftware.join(", ")}.\n\nRecommend the HRS replacement and three differentiation reasons grounded in what's in the notes or website.`
-      : "Recommend the HRS replacement for the prospect's current software with three differentiation reasons grounded in what's in the notes or website.";
+      ? `Active prospect detected software: ${company.detectedSoftware.join(", ")}.\n\nRecommend the portfolio replacement and three differentiation reasons grounded in what's in the notes or website.`
+      : "Recommend the portfolio replacement for the prospect's current software with three differentiation reasons grounded in what's in the notes or website.";
     void builder.run({
       tab: "Product Fit",
       tone,
@@ -41,7 +41,7 @@ export function ProductFitBuilder({ tone, methodology, company }: Props) {
     <div className="flex flex-col gap-5">
       <BuilderHeader
         title="Product Fit Recommendation"
-        subtitle="Paste meeting notes or a prospect URL. The AI infers the current software stack and returns the HRS replacement plus three reasons."
+        subtitle="Paste meeting notes or a prospect URL. The AI infers the current software stack and returns the portfolio replacement plus three reasons."
       />
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <UniversalContextInput

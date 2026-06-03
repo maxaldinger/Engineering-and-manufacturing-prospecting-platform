@@ -43,7 +43,7 @@ const QUICK_ACTIONS: {
     label: "Recommend product fit",
     icon: Wrench,
     tab: "Product Fit",
-    prompt: "Recommend the HRS replacement for the prospect's current software with three differentiation points.",
+    prompt: "Recommend the portfolio replacement for the prospect's current software with three differentiation points.",
   },
   {
     label: "Ask anything",
