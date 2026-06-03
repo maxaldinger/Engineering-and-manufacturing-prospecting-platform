@@ -7,7 +7,8 @@ import { SignalTypeFilter } from "./signal-type-filter";
 import { ProductTypeFilter } from "./product-type-filter";
 import { SignalRow } from "./signal-row";
 import { CompanyDossier } from "@/components/dossier/company-dossier";
-import { ALL_PRODUCT_TYPES } from "@/lib/catalog";
+import { applyFilters } from "./apply-filters";
+import { ALL_PRODUCT_TYPES, COMPETITORS } from "@/lib/catalog";
 import type { ProductTypeId } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import {
@@ -99,6 +100,38 @@ export function SignalFeed() {
     }
   }, [fetchSignals, center.location, center.radius]);
 
+  // competitor name -> its product types, for scoping the software sub-filter.
+  const competitorTypes = React.useMemo(() => {
+    const m = new Map<string, readonly ProductTypeId[]>();
+    for (const c of COMPETITORS) m.set(c.name, c.productTypes);
+    return m;
+  }, []);
+
+  // When the product-type selection narrows, clear deselections for software no
+  // longer in scope, so re-enabling that type starts fresh. A dormant
+  // deselection reviving on re-enable would be edge case 2, just delayed.
+  React.useEffect(() => {
+    setDeselectedSoftware((ds) => {
+      if (ds.size === 0) return ds;
+      const inScope = (name: string) => {
+        const types = competitorTypes.get(name);
+        return (
+          !!types &&
+          types.some(
+            (t) => selectedProductTypes.size === 0 || selectedProductTypes.has(t)
+          )
+        );
+      };
+      let changed = false;
+      const next = new Set<string>();
+      for (const name of ds) {
+        if (inScope(name)) next.add(name);
+        else changed = true;
+      }
+      return changed ? next : ds;
+    });
+  }, [selectedProductTypes, competitorTypes]);
+
   // Empty product-type selection means "no constraint" (show all classified),
   // never a blank feed.
   const typeActive = React.useCallback(
@@ -149,44 +182,22 @@ export function SignalFeed() {
     [allSignals]
   );
 
-  const filtered = React.useMemo(() => {
-    return allSignals.filter((s) => {
-      // 1. Signal type (Job / News / Gov / Tech).
-      if (!selectedTypes.has(s.signalType)) return false;
-
-      // 2. Product type / Unclassified.
-      if (s.productTypes.length === 0) {
-        // Unclassified — independent toggle, unaffected by the type chips.
-        return showUnclassified;
-      }
-      if (
-        selectedProductTypes.size > 0 &&
-        !s.productTypes.some((t) => selectedProductTypes.has(t))
-      ) {
-        return false;
-      }
-
-      // 3. Secondary software filter — only constrains signals that name a
-      // competitor in an in-scope product type; others pass untouched.
-      const inScope = s.detectedSoftware.filter(
-        (d) => d.isCompetitor && d.productTypes.some(typeActive)
-      );
-      if (
-        inScope.length > 0 &&
-        !inScope.some((d) => effectiveSoftware.has(d.name))
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [
-    allSignals,
-    selectedTypes,
-    selectedProductTypes,
-    showUnclassified,
-    effectiveSoftware,
-    typeActive,
-  ]);
+  const filtered = React.useMemo(
+    () =>
+      applyFilters(allSignals, {
+        signalTypes: selectedTypes,
+        productTypes: selectedProductTypes,
+        showUnclassified,
+        software: effectiveSoftware,
+      }),
+    [
+      allSignals,
+      selectedTypes,
+      selectedProductTypes,
+      showUnclassified,
+      effectiveSoftware,
+    ]
+  );
 
   const groups = React.useMemo<CompanyGroup[]>(
     () => groupSignalsByCompany(filtered),
