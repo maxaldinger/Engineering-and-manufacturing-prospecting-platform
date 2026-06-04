@@ -154,7 +154,10 @@ describe("Adzuna failure is distinguishable from empty results", () => {
 // radius — a compile-time guarantee, since their signatures omit it). distance
 // is applied only for a city pull with a positive mileage radius.
 describe("Adzuna radius applies on geo-capable (city) pulls only", () => {
-  const terms = ["fea", "ansys", "simulation engineer"];
+  const search = {
+    roles: ["fea engineer", "simulation engineer"],
+    software: ["ansys", "abaqus"],
+  };
 
   it("sets a km distance for a city pull with a mileage radius", () => {
     const city: Place = {
@@ -166,7 +169,7 @@ describe("Adzuna radius applies on geo-capable (city) pulls only", () => {
       lat: 42.33,
       lng: -83.05,
     };
-    const p = buildAdzunaSearchParams(city, "25", terms);
+    const p = buildAdzunaSearchParams(city, "25", search);
     expect(p.get("distance")).toBe(String(Math.round(25 * 1.60934))); // 40 km
     expect(p.get("where")).toBe("Detroit, MI");
   });
@@ -179,7 +182,7 @@ describe("Adzuna radius applies on geo-capable (city) pulls only", () => {
       country: "US",
       label: "Michigan (state-wide)",
     };
-    const p = buildAdzunaSearchParams(state, "state", terms);
+    const p = buildAdzunaSearchParams(state, "state", search);
     expect(p.get("distance")).toBeNull();
     expect(p.get("where")).toBe("Michigan");
   });
@@ -192,6 +195,6 @@ describe("Adzuna radius applies on geo-capable (city) pulls only", () => {
       country: "US",
       label: "Detroit, MI",
     };
-    expect(buildAdzunaSearchParams(city, "state", terms).get("distance")).toBeNull();
+    expect(buildAdzunaSearchParams(city, "state", search).get("distance")).toBeNull();
   });
 });

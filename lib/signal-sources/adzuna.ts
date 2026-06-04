@@ -138,20 +138,58 @@ export function parseAdzunaResults(
 
 const MILES_TO_KM = 1.60934;
 
-// Build a route OR-query from the supplied terms. Adzuna's what_or ORs the
-// individual words, so this is a broad recall fetch; classification + grouping
-// add precision. Capped to keep the URL within Adzuna's length limits.
-function whatOr(terms: string[]): string {
+// ---------------------------------------------------------------------------
+// Adzuna search-term sanitization (SEARCH SEED ONLY — the catalog detection
+// keywords and the routeMatches filter set are deliberately left untouched).
+//
+// Adzuna's what_or ORs the individual WORDS of each term, so multi-word software
+// names tokenize into common English ("master cam" -> "master","cam") and flood
+// the feed with false matches. We collapse those names to the single-token form
+// that already exists as a detection keyword, and drop overloaded stopwords.
+// ---------------------------------------------------------------------------
+
+// Multi-word software names -> their single-token sibling (search seed only).
+// Each target already exists as a catalog detection keyword, so collapsing loses
+// no recall while removing the fragment tokens.
+const ADZUNA_COLLAPSE: Record<string, string> = {
+  "master cam": "mastercam",
+  "master-cam": "mastercam",
+  "hsm works": "hsmworks",
+  "hsm-works": "hsmworks",
+  "bob cad": "bobcad",
+  "surf cam": "surfcam",
+  "edge cam": "edgecam",
+  "feature cam": "featurecam",
+};
+
+// Overloaded acronym tokens dropped from the Adzuna search seed: "cam" collides
+// with Cost/Control Account Manager, "hsm" with Hardware Security Module — both
+// the same collision class. The real tools survive as single tokens (mastercam,
+// hsmworks), so dropping the bare acronym costs no tool recall. Exported so the
+// collision set is reviewable/tunable in one place.
+export const ADZUNA_STOPWORDS = new Set<string>(["cam", "hsm"]);
+
+// Build a route OR-query. ROLE tokens are emitted BEFORE software tokens so that
+// when the 24-token cap bites it truncates software-name fragments, never the
+// role terms — the route's primary discovery signal. Multi-word software names
+// are collapsed first; stopword tokens are dropped from both. Capped to keep the
+// URL within Adzuna's length limits.
+function whatOr(search: { roles: string[]; software: string[] }): string {
   const seen = new Set<string>();
   const words: string[] = [];
-  for (const t of terms) {
-    for (const w of t.toLowerCase().split(/\s+/)) {
-      if (w && !seen.has(w)) {
-        seen.add(w);
-        words.push(w);
+  const add = (terms: string[]) => {
+    for (const t of terms) {
+      const collapsed = ADZUNA_COLLAPSE[t.toLowerCase()] ?? t;
+      for (const w of collapsed.toLowerCase().split(/\s+/)) {
+        if (w && !ADZUNA_STOPWORDS.has(w) && !seen.has(w)) {
+          seen.add(w);
+          words.push(w);
+        }
       }
     }
-  }
+  };
+  add(search.roles); // roles first — protected from cap truncation
+  add(search.software);
   return words.slice(0, 24).join(" ");
 }
 
@@ -162,13 +200,13 @@ function whatOr(terms: string[]): string {
 export function buildAdzunaSearchParams(
   place: Place,
   radius: string,
-  terms: string[]
+  search: { roles: string[]; software: string[] }
 ): URLSearchParams {
   const params = new URLSearchParams({
     results_per_page: "50",
     "content-type": "application/json",
   });
-  const what = whatOr(terms);
+  const what = whatOr(search);
   if (what) params.set("what_or", what);
 
   if (place.type === "city") {
@@ -186,7 +224,7 @@ export function buildAdzunaSearchParams(
 export async function fetchAdzunaJobs(
   place: Place,
   radius: string,
-  search: { terms: string[] }
+  search: { roles: string[]; software: string[] }
 ): Promise<Signal[]> {
   const appId = env("ADZUNA_APP_ID");
   const appKey = env("ADZUNA_APP_KEY");
@@ -197,7 +235,7 @@ export async function fetchAdzunaJobs(
   if (!appId || !appKey) return [];
 
   const country = (place.country || "US").toLowerCase(); // us / ca
-  const params = buildAdzunaSearchParams(place, radius, search.terms);
+  const params = buildAdzunaSearchParams(place, radius, search);
   params.set("app_id", appId);
   params.set("app_key", appKey);
 

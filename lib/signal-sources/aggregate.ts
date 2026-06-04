@@ -135,12 +135,16 @@ export async function aggregateSignals(
   // --- PRIMARY: the route-scoped, free discovery baseline. The guaranteed floor
   // — it produces real prospects with no paid credentials, for any route. ------
   if (adzunaConfigured) {
-    // Adzuna is the primary, route-scoped, geo-capable jobs source. It receives
-    // the route's search terms plus the full place + radius.
-    const terms = [...routeQuery.softwareKeywords, ...routeQuery.roles];
+    // Adzuna is the primary, route-scoped, geo-capable jobs source. Roles and
+    // software go separately so the search builder can order roles first (the
+    // cap then truncates software fragments, not roles) and sanitize software.
     tasks.push({
       name: ADZUNA_SOURCE_NAME,
-      run: () => fetchAdzunaJobs(place, radius, { terms }),
+      run: () =>
+        fetchAdzunaJobs(place, radius, {
+          roles: routeQuery.roles,
+          software: routeQuery.softwareKeywords,
+        }),
     });
   }
   tasks.push(
