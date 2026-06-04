@@ -160,14 +160,15 @@ const ADZUNA_COLLAPSE: Record<string, string> = {
   "surf cam": "surfcam",
   "edge cam": "edgecam",
   "feature cam": "featurecam",
+  "fusion 360": "fusion360",
 };
 
-// Overloaded acronym tokens dropped from the Adzuna search seed: "cam" collides
-// with Cost/Control Account Manager, "hsm" with Hardware Security Module — both
-// the same collision class. The real tools survive as single tokens (mastercam,
-// hsmworks), so dropping the bare acronym costs no tool recall. Exported so the
-// collision set is reviewable/tunable in one place.
-export const ADZUNA_STOPWORDS = new Set<string>(["cam", "hsm"]);
+// Tokens dropped from the Adzuna search seed. "cam" collides with Cost/Control
+// Account Manager and "hsm" with Hardware Security Module (the tools survive as
+// single tokens mastercam/hsmworks, so no recall is lost); "dp" is a low-value
+// 2-letter fragment from "dp esprit" that only matched noise. Exported so the
+// drop set is reviewable/tunable in one place.
+export const ADZUNA_STOPWORDS = new Set<string>(["cam", "hsm", "dp"]);
 
 // Build a route OR-query. ROLE tokens are emitted BEFORE software tokens so that
 // when the 24-token cap bites it truncates software-name fragments, never the
