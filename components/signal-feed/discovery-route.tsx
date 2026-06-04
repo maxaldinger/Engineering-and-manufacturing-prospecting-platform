@@ -3,7 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import type { ProductTypeId } from "@/types/product";
-import { ALL_PRODUCT_TYPES } from "@/lib/catalog";
+import { DISCOVERY_ROUTE_TYPES } from "@/lib/catalog";
 import { buildDiscoveryQuery, type DiscoveryQuery } from "@/lib/discovery";
 
 interface DiscoveryRouteProps {
@@ -32,7 +32,7 @@ export function DiscoveryRoute({ selected, onSelect }: DiscoveryRouteProps) {
         role="radiogroup"
         aria-label="Discovery route product"
       >
-        {ALL_PRODUCT_TYPES.map((t) => {
+        {DISCOVERY_ROUTE_TYPES.map((t) => {
           const on = t.id === selected;
           return (
             <button

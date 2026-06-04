@@ -1,5 +1,6 @@
 import type { Signal } from "@/types/signal";
 import type { ProductTypeId } from "@/types/product";
+import { isDiscoveryRoute } from "@/lib/catalog";
 
 export type Urgency = "high" | "medium" | "low";
 
@@ -18,6 +19,11 @@ export interface CompanyGroup {
   oneLiner: string;
   oldestPostedAgo: string;
   manufacturingRelevant: boolean;
+  // Derived mfg-services signal: the company's signals span ≥2 DISCOVERY-route
+  // disciplines (e.g. hiring CAM + Simulation), which reads as scaling /
+  // standardization — a services cross-sell. Surfaced in the brief (Step 7).
+  // Counts route types only; mfg-services itself is never one of them.
+  servicesCrossSell: boolean;
 }
 
 // Grouping key for a company name: lowercased, punctuation collapsed, and legal
@@ -124,6 +130,7 @@ export function groupSignalsByCompany(signals: Signal[]): CompanyGroup[] {
         oneLiner: "",
         oldestPostedAgo: s.postedAgo,
         manufacturingRelevant: false,
+        servicesCrossSell: false,
       };
       groups.set(key, group);
     }
@@ -143,6 +150,10 @@ export function groupSignalsByCompany(signals: Signal[]): CompanyGroup[] {
     g.urgency = urgencyFor(g.maxStrength);
     g.oneLiner = buildOneLiner(g.topSignal);
     g.manufacturingRelevant = g.signals.some((s) => !!s.manufacturingRelevant);
+    // ≥2 distinct discovery-route disciplines = multi-discipline = services
+    // cross-sell. mfg-services itself is excluded (it is not a route type).
+    g.servicesCrossSell =
+      g.productTypes.filter(isDiscoveryRoute).length >= 2;
   }
 
   return Array.from(groups.values()).sort((a, b) => b.maxStrength - a.maxStrength);

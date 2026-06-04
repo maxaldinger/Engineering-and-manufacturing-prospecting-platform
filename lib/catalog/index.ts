@@ -35,6 +35,18 @@ export interface DetectedProduct {
 // --- Indexes ----------------------------------------------------------------
 export const ALL_PRODUCT_TYPES = PRODUCT_TYPES;
 
+// The product types that are selectable DISCOVERY ROUTES (cold-searchable).
+// Excludes "derived" types (mfg-services), which are inferred from cross-route
+// signals rather than searched. Data-driven: a new derived type drops out of the
+// selector + route guard automatically.
+export const DISCOVERY_ROUTE_TYPES = (
+  PRODUCT_TYPES as readonly ProductType[]
+).filter((t) => t.discoveryMode !== "derived");
+
+export function isDiscoveryRoute(id: ProductTypeId): boolean {
+  return productTypeById[id]?.discoveryMode !== "derived";
+}
+
 const productTypeById = {} as Record<ProductTypeId, ProductType>;
 for (const t of PRODUCT_TYPES) productTypeById[t.id] = t;
 export const PRODUCT_TYPE_BY_ID = productTypeById;

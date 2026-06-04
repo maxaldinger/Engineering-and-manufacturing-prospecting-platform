@@ -1,7 +1,7 @@
 import type { Signal } from "@/types/signal";
 import type { Place } from "@/lib/geocode/types";
 import type { ProductTypeId } from "@/types/product";
-import { PRODUCT_TYPE_BY_ID } from "@/lib/catalog";
+import { PRODUCT_TYPE_BY_ID, isDiscoveryRoute } from "@/lib/catalog";
 import { fetchUSAspendingAwards } from "./usaspending";
 import { fetchNewsSignalsForRegion } from "./rss-news";
 import { fetchGreenhouseJobs } from "./greenhouse-jobs";
@@ -132,7 +132,11 @@ export async function aggregateSignals(
   // supplements (ZoomInfo, USAspending) are product-AGNOSTIC and deliberately
   // NOT scoped by this — they add manufacturers/contractors to the pool, and
   // product relevance for them comes from detection, not the route query.
-  const routeProduct: ProductTypeId = product ?? "cam";
+  // Guard: only a real discovery-route type scopes the baseline. A "derived"
+  // type (mfg-services) or an absent product falls back to CAM rather than cold-
+  // searching a derived type's terms.
+  const routeProduct: ProductTypeId =
+    product && isDiscoveryRoute(product) ? product : "cam";
   const routeQuery = buildDiscoveryQuery(routeProduct);
 
   if (adzunaConfigured) {

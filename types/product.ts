@@ -29,6 +29,12 @@ export interface ProductType {
   relevanceKeywords: readonly string[];
   // Whether the type's filter chip starts on. Defaults to on when omitted.
   enabledByDefault?: boolean;
+  // How this type is discovered. "route" (default) = a selectable discovery
+  // route with its own source scoping. "derived" = NOT cold-discovered; inferred
+  // from cross-route signals and surfaced as a flag. mfg-services is "derived":
+  // services attach to transition events (multi-discipline hiring = scaling), not
+  // a static search, so a cold route over-matches.
+  discoveryMode?: "route" | "derived";
 }
 
 // A competitor / incumbent tool we can detect and (usually) displace.

@@ -123,6 +123,10 @@ export const PRODUCT_TYPES = [
     id: "mfg-services",
     label: "Manufacturing Services",
     description: "Implementation, training, and support services.",
+    // Derived, not a cold-discovery route: it fires when a company lights up
+    // across multiple discovery routes (multi-discipline hiring = scaling =
+    // services need), surfaced as a cross-sell flag in the brief.
+    discoveryMode: "derived",
     ourProducts: ["Training & Implementation", "Technical Support"],
     // Services type: relevance-driven, not competitor-software-driven, so it
     // intentionally has no entries in COMPETITORS. Starter set — draft.

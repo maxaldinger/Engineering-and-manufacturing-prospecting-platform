@@ -125,6 +125,14 @@ export function SignalRow({ group, expanded, onToggle, children }: SignalRowProp
                 Manufacturing
               </span>
             )}
+            {group.servicesCrossSell && (
+              <span
+                title="Hiring across multiple disciplines — a services / standardization cross-sell signal."
+                className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-violet-300 bg-violet-50 text-violet-700 whitespace-nowrap"
+              >
+                Multi-discipline
+              </span>
+            )}
           </div>
           <p className="text-xs text-text-secondary mt-0.5 truncate">
             {group.oneLiner}

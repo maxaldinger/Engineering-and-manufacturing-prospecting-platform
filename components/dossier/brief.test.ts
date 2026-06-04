@@ -44,6 +44,8 @@ function syntheticGroup(): CompanyGroup {
     oneLiner: "Runs Mastercam and Ansys",
     oldestPostedAgo: "current",
     manufacturingRelevant: true,
+    // cam + simulation = two disciplines, so the cross-sell flag is on.
+    servicesCrossSell: true,
   };
 }
 

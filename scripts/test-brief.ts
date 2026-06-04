@@ -77,6 +77,7 @@ function syntheticGroup(): CompanyGroup {
     oneLiner: "Runs Mastercam and Ansys",
     oldestPostedAgo: "4 days ago",
     manufacturingRelevant: true,
+    servicesCrossSell: true,
   };
 }
 
