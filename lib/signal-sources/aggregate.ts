@@ -10,8 +10,10 @@ import { fetchAdzunaJobs, isAdzunaConfigured } from "./adzuna";
 import { ALL_REGIONS, regionForCode } from "./state-codes";
 import { buildDiscoveryQuery } from "@/lib/discovery";
 
-const ZOOMINFO_SOURCE_NAME = "ZoomInfo (territory companies + contacts)";
+const ZOOMINFO_SOURCE_NAME = "ZoomInfo (companies + contacts — supplementary)";
 const ADZUNA_SOURCE_NAME = "Adzuna (job postings — primary free jobs)";
+const USASPENDING_SOURCE_NAME =
+  "USAspending.gov (federal contractors — supplementary)";
 
 export interface AggregateMeta {
   region?: { code: string; name: string; country: "US" | "CA" };
@@ -120,25 +122,18 @@ export async function aggregateSignals(
   const zoomInfoConfigured = isZoomInfoConfigured();
   const adzunaConfigured = isAdzunaConfigured();
 
-  const tasks: { name: string; run: () => Promise<Signal[]> }[] = [];
-  if (zoomInfoConfigured) {
-    tasks.push({
-      name: ZOOMINFO_SOURCE_NAME,
-      run: () => fetchZoomInfoSignals(region.code, region.country),
-    });
-  }
-  // The route the free baseline (Adzuna + Greenhouse + RSS) is scoped to. Default
-  // to CAM when no product is supplied (direct API call). The firmographic
-  // supplements (ZoomInfo, USAspending) are product-AGNOSTIC and deliberately
-  // NOT scoped by this — they add manufacturers/contractors to the pool, and
-  // product relevance for them comes from detection, not the route query.
-  // Guard: only a real discovery-route type scopes the baseline. A "derived"
-  // type (mfg-services) or an absent product falls back to CAM rather than cold-
-  // searching a derived type's terms.
+  // The route the free baseline (Adzuna + Greenhouse + RSS) is scoped to. Guard:
+  // only a real discovery-route type scopes it; a "derived" type (mfg-services)
+  // or an absent product falls back to CAM rather than cold-searching a derived
+  // type's terms.
   const routeProduct: ProductTypeId =
     product && isDiscoveryRoute(product) ? product : "cam";
   const routeQuery = buildDiscoveryQuery(routeProduct);
 
+  const tasks: { name: string; run: () => Promise<Signal[]> }[] = [];
+
+  // --- PRIMARY: the route-scoped, free discovery baseline. The guaranteed floor
+  // — it produces real prospects with no paid credentials, for any route. ------
   if (adzunaConfigured) {
     // Adzuna is the primary, route-scoped, geo-capable jobs source. It receives
     // the route's search terms plus the full place + radius.
@@ -150,10 +145,6 @@ export async function aggregateSignals(
   }
   tasks.push(
     {
-      name: "USAspending.gov (federal contracts)",
-      run: () => fetchUSAspendingAwards(region.code, region.country),
-    },
-    {
       name: "Greenhouse boards (manufacturing + engineering jobs)",
       run: () => fetchGreenhouseJobs(region.code, routeProduct),
     },
@@ -162,6 +153,25 @@ export async function aggregateSignals(
       run: () => fetchNewsSignalsForRegion(region.code, routeProduct),
     }
   );
+
+  // --- SECONDARY: product-AGNOSTIC firmographic supplements. They ADD
+  // manufacturers (ZoomInfo) and federal contractors (USAspending) to the pool
+  // and are deliberately NOT route-scoped. Their internal SIC / NAICS filters are
+  // how each FINDS those companies — never a global gate that removes the non-
+  // manufacturers Adzuna found for a route. Product relevance for a company they
+  // surface comes from detection (+ ZoomInfo tech-stack enrichment), not the
+  // route query; a contractor with no other signal lands Unclassified until
+  // enriched, which is exactly where the ZoomInfo pairing earns its keep. ------
+  if (zoomInfoConfigured) {
+    tasks.push({
+      name: ZOOMINFO_SOURCE_NAME,
+      run: () => fetchZoomInfoSignals(region.code, region.country),
+    });
+  }
+  tasks.push({
+    name: USASPENDING_SOURCE_NAME,
+    run: () => fetchUSAspendingAwards(region.code, region.country),
+  });
 
   const results = await Promise.all(
     tasks.map(async (task) => {
@@ -200,24 +210,23 @@ export async function aggregateSignals(
     }
   }
 
-  // Surface ZoomInfo as an explicitly skipped source when credentials are
-  // absent, so the rep sees it is available but not yet wired rather than
-  // silently missing. Shown first since it is the primary source.
-  if (!zoomInfoConfigured) {
+  // Adzuna is the PRIMARY free jobs source. When its keys are absent, surface it
+  // SKIPPED at the FRONT — "skipped" here means the primary jobs feed is off,
+  // which the rep should see first. Distinct from "error" (tried and degraded).
+  if (!adzunaConfigured) {
     meta.sources.unshift({
-      name: ZOOMINFO_SOURCE_NAME,
+      name: ADZUNA_SOURCE_NAME,
       status: "skipped",
       count: 0,
     });
   }
 
-  // Adzuna is the primary free jobs source. When its keys are absent, surface it
-  // as SKIPPED (available, not wired) rather than silently missing — and at the
-  // front, since "skipped" here means the primary jobs feed is off. This is
-  // distinct from an "error" status, which means it was tried and degraded.
-  if (!adzunaConfigured) {
-    meta.sources.unshift({
-      name: ADZUNA_SOURCE_NAME,
+  // ZoomInfo is a SECONDARY supplement. Surface it skipped at the END (available,
+  // not wired) so the rep knows the enrichment + contacts path is off, without
+  // implying the territory is empty.
+  if (!zoomInfoConfigured) {
+    meta.sources.push({
+      name: ZOOMINFO_SOURCE_NAME,
       status: "skipped",
       count: 0,
     });

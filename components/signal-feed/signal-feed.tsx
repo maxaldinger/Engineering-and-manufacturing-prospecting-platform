@@ -384,7 +384,7 @@ function InitialPrompt() {
         Type a territory to pull live signals
       </h3>
       <p className="text-sm text-text-secondary max-w-md mx-auto">
-        Try a state name (Michigan, Texas, Ontario), a 2-letter code (WA, CA, BC), or a city + state (Detroit, MI). Live data comes from ZoomInfo company and contact intelligence (when configured), USAspending.gov federal contracts, Greenhouse CNC job boards, and free manufacturing trade press feeds.
+        Try a state name (Michigan, Texas, Ontario), a 2-letter code (WA, CA, BC), or a city + state (Detroit, MI). Live data comes from free job postings (Adzuna + Greenhouse boards) and manufacturing trade press, scoped to the product route you pick — plus supplementary federal-contractor and ZoomInfo company/contact intelligence when configured.
       </p>
     </div>
   );
