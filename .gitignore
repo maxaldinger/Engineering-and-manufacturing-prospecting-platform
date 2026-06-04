@@ -9,3 +9,8 @@ out
 next-env.d.ts
 tsconfig.tsbuildinfo
 .claude/
+
+# Local throwaway dev/probe scripts (run via tsx, never built/committed).
+# Only this subfolder is ignored — scripts/ itself stays tracked for real
+# build scripts and committed dev tools (e.g. scripts/test-brief.ts).
+scripts/dev/
