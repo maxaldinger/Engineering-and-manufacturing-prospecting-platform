@@ -21,6 +21,20 @@ describe("post-parse validator strips and flags fabrication", () => {
     expect(r.flags.some((f) => f.reason === "stat-claim")).toBe(true);
   });
 
+  it("catches a spelled-out stat that evades the digit regex", () => {
+    const r = validateProse("They improved yield by sixty percent last year.");
+    expect(r.ok).toBe(false);
+    expect(r.flags.some((f) => f.reason === "unsourced-number")).toBe(true);
+    expect(r.clean).toContain("[unverified]");
+    expect(r.clean).not.toMatch(/sixty/i);
+  });
+
+  it("catches other spelled number shapes (folds, counts, magnitudes)", () => {
+    expect(validateProse("a three-fold improvement").flags.some((f) => f.reason === "unsourced-number")).toBe(true);
+    expect(validateProse("zero findings across three audits").flags.some((f) => f.reason === "unsourced-number")).toBe(true);
+    expect(validateProse("two hundred employees").flags.some((f) => f.reason === "unsourced-number")).toBe(true);
+  });
+
   it("flags a named-customer claim", () => {
     const r = validateProse("Trusted by customers like Boeing and Lockheed.");
     expect(r.flags.some((f) => f.reason === "named-customer")).toBe(true);
