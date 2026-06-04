@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   parseAdzunaResults,
   describeAdzunaFailure,
+  buildAdzunaSearchParams,
   type AdzunaResponse,
 } from "./adzuna";
 import { canonicalCompany } from "./company";
 import { groupSignalsByCompany } from "@/lib/signal-grouping";
+import type { Place } from "@/lib/geocode/types";
 
 // A realistic-shaped Adzuna page: a CAM posting, a Simulation posting, and a
 // generic posting that classifies to nothing (Unclassified).
@@ -145,5 +147,51 @@ describe("Adzuna failure is distinguishable from empty results", () => {
   it("describes server and generic failures", () => {
     expect(describeAdzunaFailure(500)).toMatch(/service error/i);
     expect(describeAdzunaFailure(400)).toMatch(/request failed/i);
+  });
+});
+
+// Adzuna is the ONLY radius-honoring source (the other free sources take no
+// radius — a compile-time guarantee, since their signatures omit it). distance
+// is applied only for a city pull with a positive mileage radius.
+describe("Adzuna radius applies on geo-capable (city) pulls only", () => {
+  const terms = ["fea", "ansys", "simulation engineer"];
+
+  it("sets a km distance for a city pull with a mileage radius", () => {
+    const city: Place = {
+      type: "city",
+      name: "Detroit",
+      code: "MI",
+      country: "US",
+      label: "Detroit, MI",
+      lat: 42.33,
+      lng: -83.05,
+    };
+    const p = buildAdzunaSearchParams(city, "25", terms);
+    expect(p.get("distance")).toBe(String(Math.round(25 * 1.60934))); // 40 km
+    expect(p.get("where")).toBe("Detroit, MI");
+  });
+
+  it("sets NO distance for a state pull", () => {
+    const state: Place = {
+      type: "state",
+      name: "Michigan",
+      code: "MI",
+      country: "US",
+      label: "Michigan (state-wide)",
+    };
+    const p = buildAdzunaSearchParams(state, "state", terms);
+    expect(p.get("distance")).toBeNull();
+    expect(p.get("where")).toBe("Michigan");
+  });
+
+  it("sets no distance when a city carries the state-wide radius", () => {
+    const city: Place = {
+      type: "city",
+      name: "Detroit",
+      code: "MI",
+      country: "US",
+      label: "Detroit, MI",
+    };
+    expect(buildAdzunaSearchParams(city, "state", terms).get("distance")).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildDiscoveryQuery, routeQueryTerms } from "./query";
+import { buildDiscoveryQuery, routeQueryTerms, routeMatches } from "./query";
 import { ROUTE_GTM } from "./routes";
 import {
   ALL_PRODUCT_TYPES,
@@ -109,6 +109,27 @@ const FLAGSHIP: Record<ProductTypeId, string> = {
   additive: "stratasys",
   "mfg-services": "implementation services",
 };
+
+// The per-source relevance filter (Greenhouse titles, RSS articles). Positive
+// AND negative, plus a word-boundary guard so a substring can't false-match.
+describe("routeMatches scopes a posting to one route", () => {
+  it("matches a posting to its own route, not another's", () => {
+    expect(routeMatches("Simulation Engineer (FEA)", "simulation")).toBe(true);
+    expect(routeMatches("CNC Programmer - Mastercam", "cam")).toBe(true);
+    expect(routeMatches("Electrical Controls Engineer", "electrical")).toBe(true);
+
+    // Cross-route negatives — the .not direction is the real scoping proof.
+    expect(routeMatches("CNC Programmer - Mastercam", "simulation")).toBe(false);
+    expect(routeMatches("FEA Analyst", "cam")).toBe(false);
+    expect(routeMatches("Simulation Engineer (FEA)", "electrical")).toBe(false);
+  });
+
+  it("matches on word boundaries, never substrings", () => {
+    // "fea" (a Simulation term) must not match inside "defeat" / "feature".
+    expect(routeMatches("Defeat the Feature backlog", "simulation")).toBe(false);
+    expect(routeMatches("", "cam")).toBe(false);
+  });
+});
 
 describe("single-category flagships never leak across routes", () => {
   for (const owner of ALL_IDS) {

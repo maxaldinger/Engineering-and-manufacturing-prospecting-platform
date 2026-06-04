@@ -4,7 +4,7 @@ import type { ProductTypeId } from "@/types/product";
 import { PRODUCT_TYPE_BY_ID } from "@/lib/catalog";
 import { fetchUSAspendingAwards } from "./usaspending";
 import { fetchNewsSignalsForRegion } from "./rss-news";
-import { fetchCncJobsForRegion } from "./greenhouse-jobs";
+import { fetchGreenhouseJobs } from "./greenhouse-jobs";
 import { fetchZoomInfoSignals, isZoomInfoConfigured } from "./zoominfo";
 import { fetchAdzunaJobs, isAdzunaConfigured } from "./adzuna";
 import { ALL_REGIONS, regionForCode } from "./state-codes";
@@ -127,12 +127,18 @@ export async function aggregateSignals(
       run: () => fetchZoomInfoSignals(region.code, region.country),
     });
   }
+  // The route the free baseline (Adzuna + Greenhouse + RSS) is scoped to. Default
+  // to CAM when no product is supplied (direct API call). The firmographic
+  // supplements (ZoomInfo, USAspending) are product-AGNOSTIC and deliberately
+  // NOT scoped by this — they add manufacturers/contractors to the pool, and
+  // product relevance for them comes from detection, not the route query.
+  const routeProduct: ProductTypeId = product ?? "cam";
+  const routeQuery = buildDiscoveryQuery(routeProduct);
+
   if (adzunaConfigured) {
-    // Step 4 baseline: the CAM route's terms. Step 5 routes this by the selected
-    // product (buildDiscoveryQuery(product)). Adzuna is the geo-capable jobs
-    // source, so it receives the full place + radius.
-    const baseline = buildDiscoveryQuery("cam");
-    const terms = [...baseline.softwareKeywords, ...baseline.roles];
+    // Adzuna is the primary, route-scoped, geo-capable jobs source. It receives
+    // the route's search terms plus the full place + radius.
+    const terms = [...routeQuery.softwareKeywords, ...routeQuery.roles];
     tasks.push({
       name: ADZUNA_SOURCE_NAME,
       run: () => fetchAdzunaJobs(place, radius, { terms }),
@@ -144,12 +150,12 @@ export async function aggregateSignals(
       run: () => fetchUSAspendingAwards(region.code, region.country),
     },
     {
-      name: "Greenhouse boards (CNC and manufacturing jobs)",
-      run: () => fetchCncJobsForRegion(region.code),
+      name: "Greenhouse boards (manufacturing + engineering jobs)",
+      run: () => fetchGreenhouseJobs(region.code, routeProduct),
     },
     {
       name: "Trade press RSS (Modern Machine Shop, IndustryWeek, American Machinist, AM&D)",
-      run: () => fetchNewsSignalsForRegion(region.code),
+      run: () => fetchNewsSignalsForRegion(region.code, routeProduct),
     }
   );
 

@@ -5,5 +5,6 @@ export { ROUTE_GTM, type RouteGtm } from "./routes";
 export {
   buildDiscoveryQuery,
   routeQueryTerms,
+  routeMatches,
   type DiscoveryQuery,
 } from "./query";

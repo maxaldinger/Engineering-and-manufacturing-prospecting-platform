@@ -62,6 +62,24 @@ export function routeQueryTerms(id: ProductTypeId): string[] {
   ]);
 }
 
+function escapeForRegex(s: string): string {
+  return s.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+}
+
+// Whether a text is on-route: does it contain any of the route's lexical terms
+// by WORD BOUNDARY (not substring, so "fea" never matches "defeat"). This is the
+// per-source relevance filter that route-scopes the keyword sources (Greenhouse
+// titles, RSS articles); Adzuna scopes server-side via what_or. Honors the GTM
+// roles, not just the catalog half, so an "FEA Engineer" posting matches the
+// Simulation route even when no competitor tool is named.
+export function routeMatches(text: string, id: ProductTypeId): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return routeQueryTerms(id).some((t) =>
+    new RegExp(`(?:^|[^a-z])${escapeForRegex(t)}(?:[^a-z]|$)`, "i").test(lower)
+  );
+}
+
 function dedupeLower(xs: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];

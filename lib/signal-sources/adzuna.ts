@@ -155,6 +155,34 @@ function whatOr(terms: string[]): string {
   return words.slice(0, 24).join(" ");
 }
 
+// Pure: build the route + geo query params (no credentials). Adzuna is the only
+// radius-honoring source, so the radius rule lives here: `distance` (km) is set
+// ONLY for a city pull with a positive mileage radius, never for a state pull.
+// Exposed for the radius test.
+export function buildAdzunaSearchParams(
+  place: Place,
+  radius: string,
+  terms: string[]
+): URLSearchParams {
+  const params = new URLSearchParams({
+    results_per_page: "50",
+    "content-type": "application/json",
+  });
+  const what = whatOr(terms);
+  if (what) params.set("what_or", what);
+
+  if (place.type === "city") {
+    params.set("where", place.label || place.name);
+    const miles = Number.parseInt(radius, 10);
+    if (Number.isFinite(miles) && miles > 0) {
+      params.set("distance", String(Math.round(miles * MILES_TO_KM)));
+    }
+  } else {
+    params.set("where", place.name); // state / province name, state-wide
+  }
+  return params;
+}
+
 export async function fetchAdzunaJobs(
   place: Place,
   radius: string,
@@ -169,26 +197,9 @@ export async function fetchAdzunaJobs(
   if (!appId || !appKey) return [];
 
   const country = (place.country || "US").toLowerCase(); // us / ca
-  const params = new URLSearchParams({
-    app_id: appId,
-    app_key: appKey,
-    results_per_page: "50",
-    "content-type": "application/json",
-  });
-  const what = whatOr(search.terms);
-  if (what) params.set("what_or", what);
-
-  // Adzuna is the geo-capable jobs source: a city pull honors the mileage radius
-  // (converted to km); a state pull queries the state name, state-wide.
-  if (place.type === "city") {
-    params.set("where", place.label || place.name);
-    const miles = Number.parseInt(radius, 10);
-    if (Number.isFinite(miles) && miles > 0) {
-      params.set("distance", String(Math.round(miles * MILES_TO_KM)));
-    }
-  } else {
-    params.set("where", place.name); // state / province name
-  }
+  const params = buildAdzunaSearchParams(place, radius, search.terms);
+  params.set("app_id", appId);
+  params.set("app_key", appKey);
 
   const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
 

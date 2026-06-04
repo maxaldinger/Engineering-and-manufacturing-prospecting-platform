@@ -3,9 +3,11 @@
 // description for state name, common cities, or the state code.
 
 import type { Signal } from "@/types/signal";
+import type { ProductTypeId } from "@/types/product";
 import { relativeAge, scoreSignal, summarize } from "./extract";
 import { BRAND } from "@/lib/brand";
 import { classifyText } from "@/lib/catalog";
+import { routeMatches } from "@/lib/discovery";
 
 interface RssItem {
   title: string;
@@ -263,8 +265,13 @@ function rssItemToSignal(
   };
 }
 
+// Route-scoped: an article must match BOTH the region AND the selected product's
+// route terms. Trade press skews CAM/manufacturing, so this is rich for CAM and
+// thin for other routes (Adzuna carries those) — but it never surfaces an
+// article irrelevant to the chosen product.
 export async function fetchNewsSignalsForRegion(
-  stateCode: string
+  stateCode: string,
+  product: ProductTypeId
 ): Promise<Signal[]> {
   if (!stateCode) return [];
   const all = await Promise.all(FEEDS.map(fetchFeed));
@@ -277,6 +284,7 @@ export async function fetchNewsSignalsForRegion(
     for (const item of items) {
       const text = `${item.title} ${item.description}`;
       if (!regionMatches(text, stateCode)) continue;
+      if (!routeMatches(text, product)) continue;
       const sig = rssItemToSignal(item, spec, stateCode);
       if (!sig) continue;
       if (seenIds.has(sig.id)) continue;

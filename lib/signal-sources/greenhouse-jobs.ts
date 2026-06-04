@@ -1,15 +1,15 @@
-// Real CNC and manufacturing job postings from public Greenhouse job
+// Real manufacturing and engineering job postings from public Greenhouse job
 // boards. No auth required.
 //
 // Greenhouse exposes a public REST endpoint per company at
 // https://boards-api.greenhouse.io/v1/boards/{token}/jobs.json that
 // returns the company's full job board as JSON. We curate a list of
-// CNC-friendly manufacturers, aerospace primes, and digital
-// manufacturing marketplaces that publish via Greenhouse, then filter
-// for CNC programmer / machinist / CAM engineer roles in the rep's
-// region.
+// manufacturers, aerospace primes, and digital manufacturing marketplaces that
+// publish via Greenhouse, then keep the postings whose titles match the
+// SELECTED product's discovery route (routeMatches) in the rep's region.
 
 import type { Signal } from "@/types/signal";
+import type { ProductTypeId } from "@/types/product";
 import {
   isCamRelevant,
   relativeAge,
@@ -20,6 +20,7 @@ import {
 import { regionForCode } from "./state-codes";
 import { BRAND } from "@/lib/brand";
 import { classifyText } from "@/lib/catalog";
+import { routeMatches } from "@/lib/discovery";
 
 interface GreenhouseLocation {
   name?: string;
@@ -70,37 +71,6 @@ const COMPANIES: { token: string; name: string; sector: string }[] = [
   { token: "apex", name: "Apex Space", sector: "Aerospace" },
   { token: "archer", name: "Archer Aviation", sector: "Aerospace" },
 ];
-
-const CNC_KEYWORDS = [
-  "cnc",
-  "machinist",
-  "mastercam",
-  "camworks",
-  "fusion 360",
-  "fusion360",
-  "cam programmer",
-  "cam engineer",
-  "manufacturing engineer",
-  "tooling engineer",
-  "5-axis",
-  "5 axis",
-  "multi-axis",
-  "multi axis",
-  "g-code",
-  "milling",
-  "turning",
-  "swiss-type",
-  "swiss type",
-  "mill-turn",
-  "machine programmer",
-  "programmer machinist",
-  "programmer / machinist",
-];
-
-function isCncRole(title: string): boolean {
-  const lower = title.toLowerCase();
-  return CNC_KEYWORDS.some((k) => lower.includes(k));
-}
 
 // Map a free-text location like "Hawthorne, CA" or "Bastrop, TX or Hawthorne, CA"
 // to the set of state codes it covers. A job posted in multiple cities
@@ -259,7 +229,14 @@ async function fetchBoard(token: string): Promise<GreenhouseJob[]> {
   }
 }
 
-export async function fetchCncJobsForRegion(stateCode: string): Promise<Signal[]> {
+// Route-scoped: a posting is kept only if its title matches the selected
+// product's route (roles + software + keywords). The curated company list is
+// manufacturing-centric, so it carries CAM richly and engineering-heavy routes
+// (Simulation, Electrical, Additive) more thinly — Adzuna carries the rest.
+export async function fetchGreenhouseJobs(
+  stateCode: string,
+  product: ProductTypeId
+): Promise<Signal[]> {
   if (!stateCode) return [];
   const region = regionForCode(stateCode);
   if (!region) return [];
@@ -271,7 +248,7 @@ export async function fetchCncJobsForRegion(stateCode: string): Promise<Signal[]
   for (let i = 0; i < COMPANIES.length; i++) {
     const company = COMPANIES[i];
     for (const job of all[i]) {
-      if (!isCncRole(job.title)) continue;
+      if (!routeMatches(job.title, product)) continue;
       const states = locationStates(job.location?.name ?? "");
       if (!states.has(stateCode)) continue;
       const sig = jobToSignal(job, company, stateCode);
