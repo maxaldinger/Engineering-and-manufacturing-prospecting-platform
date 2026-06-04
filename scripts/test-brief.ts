@@ -20,7 +20,10 @@ function loadEnvLocal(): void {
     const raw = readFileSync(path, "utf8");
     for (const line of raw.split(/\r?\n/)) {
       const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (m && process.env[m[1]] === undefined) {
+      // Override when missing OR empty: the ambient env can set a key (e.g.
+      // ANTHROPIC_API_KEY) to an empty string, which would otherwise shadow the
+      // real .env.local value and silently skip it.
+      if (m && !process.env[m[1]]) {
         process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
       }
     }
