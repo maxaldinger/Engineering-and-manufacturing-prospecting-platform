@@ -5,10 +5,7 @@ export type Tab =
   | "Email"
   | "LOU"
   | "Product Fit"
-  | "Objections"
   | "Threading"
-  | "Proposal"
-  | "Deck"
   | "MEDDPICC";
 
 export type Tone = "Direct" | "Consultative" | "Technical" | "Executive";
@@ -63,17 +60,8 @@ const TAB_INSTRUCTIONS: Record<Tab, string> = {
 If a section has no input from the prospect yet, write 'To be confirmed with [role]' rather than inventing details.`,
   "Product Fit":
     "Recommend the portfolio fit for the prospect's current software. For a validated mapping, name the replacement and give 3 specific reasons grounded in real product differences (anchor on the provided reasons). For a category-offering mapping (one that is not a validated replacement), name our product in that category and frame it as worth a conversation, without claiming it replaces their tool or asserting specific advantages.",
-  Objections: `Handle the objection using the selected methodology. Four-step structure:
-1. Acknowledge the concern without dismissing it.
-2. Reframe to surface the underlying interest.
-3. Evidence with a specific proof point or comparable customer story.
-4. Advance with a small commitment that tests the reframe.`,
   Threading:
     "Suggest 3 to 5 stakeholders to multi-thread into based on company size and detected role data. For each: role, why they matter, what message lands with them, and who on the team should own the relationship.",
-  Proposal:
-    "Outline structure and key sections: executive summary, situation, recommended solution, scope, timeline, investment, success metrics, next steps. Bullet points, not prose, since the rep will fill content.",
-  Deck:
-    "Outline a slide structure for a discovery or recommendation meeting. 8 to 12 slides. For each slide: title, 3 bullet points of content, and the question this slide answers for the buyer.",
   MEDDPICC: `Score the deal across all 8 MEDDPICC criteria. For each: a one-line definition, the rep's evidence so far (or 'unknown'), a Red / Yellow / Green status, and the next action to advance it.
 
 Criteria order: Metrics, Economic Buyer, Decision Criteria, Decision Process, Identify Pain, Champion, Competition, Paper Process.

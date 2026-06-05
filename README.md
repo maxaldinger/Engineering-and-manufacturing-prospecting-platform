@@ -23,7 +23,7 @@ The three free sources work out of the box. When ZoomInfo credentials are absent
 
 ### Sales Assist (`/sales-assist`)
 
-Email, LOU, Product Fit, Objections, Threading, Proposal, Deck, and MEDDPICC builders run against the Anthropic API on whatever the rep types. The system prompt and the per-prospect replacement mapping are **derived from the product catalog** (`lib/sales-context.ts`), so they stay in sync with the portfolio.
+Ask Anything, Email, LOU, Product Fit, Threading, and MEDDPICC builders run against the Anthropic API on whatever the rep types. The system prompt and the per-prospect replacement mapping are **derived from the product catalog** (`lib/sales-context.ts`), so they stay in sync with the portfolio.
 
 ## Product-type catalog (the core data model)
 

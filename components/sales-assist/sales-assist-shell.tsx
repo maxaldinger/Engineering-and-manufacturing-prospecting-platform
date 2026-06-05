@@ -11,10 +11,7 @@ import { AskAnythingBuilder } from "./builders/ask-anything-builder";
 import { EmailBuilder } from "./builders/email-builder";
 import { LouBuilder } from "./builders/lou-builder";
 import { ProductFitBuilder } from "./builders/product-fit-builder";
-import { ObjectionsBuilder } from "./builders/objections-builder";
 import { ThreadingBuilder } from "./builders/threading-builder";
-import { ProposalBuilder } from "./builders/proposal-builder";
-import { DeckBuilder } from "./builders/deck-builder";
 import { MeddpiccBuilder } from "./builders/meddpicc-builder";
 
 export function SalesAssistShell() {
@@ -45,10 +42,7 @@ export function SalesAssistShell() {
         {tab === "Email" && <EmailBuilder {...builderProps} />}
         {tab === "LOU" && <LouBuilder {...builderProps} />}
         {tab === "Product Fit" && <ProductFitBuilder {...builderProps} />}
-        {tab === "Objections" && <ObjectionsBuilder {...builderProps} />}
         {tab === "Threading" && <ThreadingBuilder {...builderProps} />}
-        {tab === "Proposal" && <ProposalBuilder {...builderProps} />}
-        {tab === "Deck" && <DeckBuilder {...builderProps} />}
         {tab === "MEDDPICC" && <MeddpiccBuilder {...builderProps} />}
       </div>
 

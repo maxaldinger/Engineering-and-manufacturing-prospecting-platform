@@ -3,7 +3,6 @@
 import {
   Sparkles,
   Mail,
-  Shield,
   MessageSquare,
   ClipboardList,
   Wrench,
@@ -26,12 +25,6 @@ const QUICK_ACTIONS: {
     tab: "Email",
     prompt:
       "Draft a cold email to the prospect's manufacturing leader. Lead with a relevant insight about their software stack, close with one specific ask.",
-  },
-  {
-    label: "Handle an objection",
-    icon: Shield,
-    tab: "Objections",
-    prompt: "We are getting the 'we already use Mastercam, why switch' objection. Help me handle it.",
   },
   {
     label: "Score MEDDPICC",

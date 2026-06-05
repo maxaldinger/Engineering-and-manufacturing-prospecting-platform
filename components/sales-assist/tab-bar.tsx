@@ -37,24 +37,9 @@ const TABS: TabConfig[] = [
     active: "bg-primary-subtle text-primary border-primary ring-1 ring-primary/40",
   },
   {
-    name: "Objections",
-    dot: "bg-amber-500",
-    active: "bg-amber-50 text-amber-900 border-amber-400 ring-1 ring-amber-300",
-  },
-  {
     name: "Threading",
     dot: "bg-pink-500",
     active: "bg-pink-50 text-pink-900 border-pink-400 ring-1 ring-pink-300",
-  },
-  {
-    name: "Proposal",
-    dot: "bg-cyan-500",
-    active: "bg-cyan-50 text-cyan-900 border-cyan-400 ring-1 ring-cyan-300",
-  },
-  {
-    name: "Deck",
-    dot: "bg-orange-500",
-    active: "bg-orange-50 text-orange-900 border-orange-400 ring-1 ring-orange-300",
   },
   {
     name: "MEDDPICC",
