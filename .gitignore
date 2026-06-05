@@ -1,8 +1,13 @@
 node_modules
 .next
 out
+# Env files: ignore every variant so a real secret can never be committed.
+# Only the placeholder template (.env.example) stays tracked.
 .env
-.env.local
+.env*.local
+.env.development
+.env.production
+!.env.example
 .DS_Store
 *.log
 .vercel
