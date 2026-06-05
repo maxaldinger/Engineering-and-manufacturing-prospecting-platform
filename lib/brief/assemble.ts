@@ -75,10 +75,15 @@ export interface PainPoint {
   solution: CuratedField;
 }
 
-// Cold-email draft. Subject and body are paraphrase-only and run through the
-// same validator as every other prose field, so the Copy control hands the rep
-// grounded text, never an invented stat. Pending until the LLM prose arrives.
-export interface OutreachDraft {
+export type OutreachChannel = "email" | "linkedin" | "call";
+
+// One touch in a grounded outreach sequence. `day` is our fixed cadence, not a
+// prospect claim, so it stays a plain number; subject and body are paraphrase-only
+// and run through the same validator as every other prose field, so the Copy
+// control hands the rep grounded text, never an invented stat.
+export interface OutreachTouch {
+  day: number;
+  channel: OutreachChannel;
   subject: InferredField;
   body: InferredField;
 }
@@ -98,7 +103,7 @@ export interface GroundedBrief {
   executiveSummary: InferredField | CuratedGap; // LLM prose or pending
   painPoints: PainPoint[];
   talkingPoints: TalkingPoint[];
-  outreach: OutreachDraft | CuratedGap; // grounded cold-email draft or pending
+  outreach: OutreachTouch[] | CuratedGap; // grounded multi-touch sequence or pending
   displacement: DisplacementEntry[];
   keyContacts: KeyContact[];
   relatedSignals: RelatedSignal[];
@@ -111,7 +116,7 @@ export interface BriefProse {
   whyReseller?: string;
   painPoints?: { text: string; discipline?: ProductTypeId }[];
   talkingPoints?: { question: string; answer: string; discipline?: ProductTypeId }[];
-  outreach?: { subject: string; body: string };
+  outreach?: { channel: OutreachChannel; subject: string; body: string }[];
 }
 
 export interface AssembleInput {
@@ -278,6 +283,38 @@ function buildTalkingPoints(
   }));
 }
 
+// Our fixed outreach cadence (days). The day is structural, not a prospect claim,
+// so it is assigned deterministically by step rather than taken from the model.
+const OUTREACH_CADENCE = [1, 3, 6, 9, 13, 17];
+
+// A grounded multi-touch outreach sequence. Each touch's subject and body are
+// inferred prose carrying their signal refs; the channel is the model's, the day
+// is our cadence. Pending gap when no prose.
+function buildOutreach(
+  items: { channel: OutreachChannel; subject: string; body: string }[] | undefined,
+  group: CompanyGroup
+): OutreachTouch[] | CuratedGap {
+  const touches = (items ?? []).filter((t) => t.subject.trim() || t.body.trim());
+  if (touches.length === 0) {
+    return curatedGap("pending AI outreach (set ANTHROPIC_API_KEY)");
+  }
+  const refs = allRefs(group);
+  return touches.map((t, i) => ({
+    day: OUTREACH_CADENCE[i] ?? (i + 1) * 4,
+    channel: t.channel,
+    subject: inferredFromSignals(
+      t.subject,
+      "outreach subject paraphrased from the prospect's signals",
+      refs
+    ),
+    body: inferredFromSignals(
+      t.body,
+      "outreach body paraphrased from the prospect's signals",
+      refs
+    ),
+  }));
+}
+
 // Pain points: inferred text, an inferred discipline tag, and a COMPUTED severity
 // over the evidence backing each point (discipline-scoped signals, falling back to
 // the whole company set). The solution slot stays a visible pending gap.
@@ -337,21 +374,7 @@ export function assembleBrief(input: AssembleInput): GroundedBrief {
       : curatedGap("pending AI summary (set ANTHROPIC_API_KEY)"),
     painPoints: buildPainPoints(prose?.painPoints, group),
     talkingPoints: buildTalkingPoints(prose?.talkingPoints, group),
-    outreach:
-      prose?.outreach && (prose.outreach.subject.trim() || prose.outreach.body.trim())
-        ? {
-            subject: inferredFromSignals(
-              prose.outreach.subject,
-              "cold-email subject paraphrased from the prospect's signals",
-              refs
-            ),
-            body: inferredFromSignals(
-              prose.outreach.body,
-              "cold-email body paraphrased from the prospect's signals",
-              refs
-            ),
-          }
-        : curatedGap("pending AI outreach (set ANTHROPIC_API_KEY)"),
+    outreach: buildOutreach(prose?.outreach, group),
     displacement: buildDisplacement(group),
     keyContacts: buildKeyContacts(group),
     relatedSignals: buildRelatedSignals(group),

@@ -14,6 +14,8 @@ import {
   Users,
   Activity,
   Mail,
+  Linkedin,
+  Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -26,7 +28,7 @@ import type {
   GroundedBrief,
   DisciplineField,
   ContactField,
-  OutreachDraft,
+  OutreachChannel,
 } from "@/lib/brief/assemble";
 import { severityBand, type SeverityBand } from "@/lib/brief/severity";
 import type { Motion } from "@/lib/brief/motion";
@@ -292,27 +294,74 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-// The grounded cold-email draft with its Copy control. Exported so the dossier
-// can place it in the section order.
+const CHANNEL_BADGE: Record<OutreachChannel, string> = {
+  email:
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+  linkedin:
+    "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
+  call:
+    "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-300",
+};
+const CHANNEL_ICON: Record<OutreachChannel, React.ComponentType<{ className?: string }>> = {
+  email: Mail,
+  linkedin: Linkedin,
+  call: Phone,
+};
+
+// The grounded multi-touch outreach sequence with per-touch Copy. Exported so the
+// dossier can place it in the section order. Each touch's copy is already
+// validated prose, so the clipboard gets grounded text.
 export function OutreachCard({ outreach }: { outreach: GroundedBrief["outreach"] }) {
-  if (!("subject" in outreach)) {
+  if (!Array.isArray(outreach)) {
     return <PendingOrCurated f={outreach} />;
   }
-  const draft = outreach as OutreachDraft;
-  const copyText = `Subject: ${fieldValue(draft.subject)}\n\n${fieldValue(draft.body)}`;
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-semibold text-text-primary">{fieldValue(draft.subject)}</p>
-        <CopyButton text={copyText} />
-      </div>
-      <p className="mt-2 text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
-        {fieldValue(draft.body)}
-      </p>
-      <div className="mt-3 flex items-center gap-2 border-t border-border pt-2.5">
-        <ProvBadge f={draft.subject} />
-        <span className="text-[10px] text-text-muted">grounded draft, review before sending</span>
-      </div>
+    <div className="space-y-2.5">
+      {outreach.map((t, i) => {
+        const subject = fieldValue(t.subject);
+        const body = fieldValue(t.body);
+        const Icon = CHANNEL_ICON[t.channel];
+        const copyText = `${subject ? `Subject: ${subject}\n\n` : ""}${body}`;
+        return (
+          <div key={i} className="flex gap-3">
+            <div className="w-12 flex-shrink-0 pt-1 text-right">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                Day {t.day}
+              </span>
+            </div>
+            <div className="flex-1 rounded-lg border border-border bg-surface p-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <span
+                    className={cn(
+                      "mb-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] border text-[9px] font-bold uppercase tracking-wider",
+                      CHANNEL_BADGE[t.channel]
+                    )}
+                  >
+                    <Icon className="h-2.5 w-2.5" />
+                    {t.channel}
+                  </span>
+                  {subject && (
+                    <p className="text-sm font-semibold text-text-primary">{subject}</p>
+                  )}
+                </div>
+                <CopyButton text={copyText} />
+              </div>
+              {body && (
+                <p className="mt-1.5 text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
+                  {body}
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {outreach[0] && (
+        <div className="flex items-center gap-2 pl-[3.75rem]">
+          <ProvBadge f={outreach[0].subject} />
+          <span className="text-[10px] text-text-muted">grounded sequence, review before sending</span>
+        </div>
+      )}
     </div>
   );
 }

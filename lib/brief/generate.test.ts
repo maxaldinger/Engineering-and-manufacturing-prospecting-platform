@@ -102,21 +102,25 @@ describe("groundProse contains the model", () => {
     expect(prose.whyReseller).not.toMatch(/5,?000/);
   });
 
-  it("strips an injected stat from the outreach body so the clipboard stays grounded", () => {
+  it("strips an injected stat from an outreach touch and normalizes its channel", () => {
     const group = mkGroup([{ title: "CNC Programmer", description: "Hiring for production." }]);
     const { prose, flags } = groundProse(
       {
-        outreach: {
-          subject: "Quick question on your CNC hiring",
-          body: "Saw your CNC Programmer opening. Teams like yours cut scrap by 40% after switching.",
-        },
+        outreach: [
+          {
+            channel: "LinkedIn",
+            subject: "Quick question on your CNC hiring",
+            body: "Saw your CNC Programmer opening. Teams like yours cut scrap by 40% after switching.",
+          },
+        ],
       },
       group
     );
-    expect(flags.some((f) => f.field === "outreach.body" && f.reason === "unsourced-number")).toBe(true);
-    expect(prose.outreach?.body).toContain("[unverified]");
-    expect(prose.outreach?.body).not.toMatch(/40\s?%/);
-    expect(prose.outreach?.subject).toContain("CNC");
+    expect(flags.some((f) => f.field === "outreach[0].body" && f.reason === "unsourced-number")).toBe(true);
+    expect(prose.outreach?.[0]?.body).toContain("[unverified]");
+    expect(prose.outreach?.[0]?.body).not.toMatch(/40\s?%/);
+    expect(prose.outreach?.[0]?.subject).toContain("CNC");
+    expect(prose.outreach?.[0]?.channel).toBe("linkedin");
   });
 });
 
@@ -128,10 +132,13 @@ describe("parseRawProse", () => {
     expect(parseRawProse("not json")).toBeNull();
   });
 
-  it("parses the outreach subject and body", () => {
-    const ok = parseRawProse('{"outreach":{"subject":"s","body":"b"}}');
-    expect(ok?.outreach?.subject).toBe("s");
-    expect(ok?.outreach?.body).toBe("b");
+  it("parses an outreach sequence, keeping raw channel and dropping empty touches", () => {
+    const ok = parseRawProse(
+      '{"outreach":[{"channel":"call","subject":"s","body":"b"},{"subject":"s2","body":"b2"},{"channel":"email"}]}'
+    );
+    expect(ok?.outreach).toHaveLength(2); // the channel-only touch (no subject/body) is dropped
+    expect(ok?.outreach?.[0]?.channel).toBe("call");
+    expect(ok?.outreach?.[1]?.channel).toBe("email"); // missing channel defaults
   });
 
   it("parses whyReseller and rejects a non-string", () => {
@@ -147,8 +154,9 @@ describe("parseRawProse", () => {
     expect(ok?.talkingPoints?.[0]).toEqual({ question: "q1", answer: "a1", discipline: undefined });
   });
 
-  it("omits outreach when it is malformed", () => {
+  it("omits outreach when it is not an array", () => {
     expect(parseRawProse('{"outreach":42}')?.outreach).toBeUndefined();
+    expect(parseRawProse('{"outreach":{"subject":"s"}}')?.outreach).toBeUndefined();
     expect(parseRawProse('{"executiveSummary":"x"}')?.outreach).toBeUndefined();
   });
 });

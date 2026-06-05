@@ -10,7 +10,15 @@ import type { ProductTypeId } from "@/types/product";
 import { buildSignalDigest } from "@/components/dossier/brief";
 import { BRAND } from "@/lib/brand";
 import { validateProse } from "./validator";
-import type { BriefProse } from "./assemble";
+import type { BriefProse, OutreachChannel } from "./assemble";
+
+// Normalize the model's free-text channel to one of the three we render.
+function normalizeChannel(c: unknown): OutreachChannel {
+  const v = String(c ?? "").toLowerCase();
+  if (v.includes("linkedin") || v === "in") return "linkedin";
+  if (v.includes("call") || v.includes("phone")) return "call";
+  return "email";
+}
 
 export const GROUNDED_SYSTEM_PROMPT = `You are a sales analyst summarizing public signal data for one prospect. You represent ${BRAND.reseller.name} (${BRAND.reseller.short}), whose real capabilities are: ${BRAND.reseller.supportLine}. Reply with ONLY a single JSON object, no prose, no markdown fences:
 
@@ -19,7 +27,7 @@ export const GROUNDED_SYSTEM_PROMPT = `You are a sales analyst summarizing publi
   "whyReseller": "<1-2 sentences on why ${BRAND.reseller.short} is a fit for THIS prospect, tying ${BRAND.reseller.short}'s real capabilities stated above to their specific signals and detected tools. No numbers.>",
   "painPoints": [ { "text": "<one pain point implied by a specific signal>", "discipline": "<cad|cam|simulation|electrical|design-automation|additive|mfg-services, optional>" } ],
   "talkingPoints": [ { "question": "<a sharp discovery question that frames a gap implied by a specific signal>", "answer": "<1-2 sentences connecting that question to one of our capabilities, grounded in the same signal>", "discipline": "<optional>" } ],
-  "outreach": { "subject": "<a 6-10 word cold-email subject line>", "body": "<a 3-5 sentence cold email referencing one specific signal and one product capability, no greeting fluff>" }
+  "outreach": [ { "channel": "email | linkedin | call", "subject": "<a short subject for an email, or a one-line opener for a linkedin or call touch>", "body": "<2-4 sentences grounded in ONE specific signal and ONE capability, no greeting fluff>" } ]
 }
 
 Strict rules:
@@ -27,6 +35,7 @@ Strict rules:
 - For whyReseller, use ONLY ${BRAND.reseller.short}'s real capabilities stated above. Do NOT invent other capabilities, certifications, numbers, or customers.
 - No statistics, no percentages, no dollar figures, and no specific numbers unless that exact number appears in a provided signal. Use qualitative quantifiers ("multiple", "several", "junior through senior"), never counts.
 - No named customers, no case studies, no competitive claims that are not in the provided "Recommended fit" block.
+- outreach is a 4 to 5 step sequence that escalates across channels (start with email, then a linkedin touch, then a call, and so on). Each step references a specific signal and one capability, and varies the angle from the previous step.
 - Attribute each observation to the specific signal that carries it. Do NOT assert an attribute holds across signals when only one signal shows it.
 - If the signals are thin, return fewer items. Never pad with invention.
 - No em dashes. Use commas or restructure.`;
@@ -59,7 +68,7 @@ export interface RawProse {
   whyReseller?: string;
   painPoints?: { text: string; discipline?: ProductTypeId }[];
   talkingPoints?: { question: string; answer: string; discipline?: ProductTypeId }[];
-  outreach?: { subject: string; body: string };
+  outreach?: { channel?: string; subject: string; body: string }[];
 }
 
 export interface ProseFlag {
@@ -104,14 +113,16 @@ export function groundProse(raw: RawProse, group: CompanyGroup): GroundedProseRe
       discipline: p.discipline,
     }));
   }
-  if (raw.outreach && (raw.outreach.subject || raw.outreach.body)) {
-    // Outreach copy runs through the same number-stripping pass: a cold email is
-    // exactly where a fabricated "30% faster" would slip in, so subject and body
-    // are validated like every other prose field before they reach the clipboard.
-    prose.outreach = {
-      subject: clean(raw.outreach.subject ?? "", "outreach.subject"),
-      body: clean(raw.outreach.body ?? "", "outreach.body"),
-    };
+  if (raw.outreach?.length) {
+    // Every touch runs through the same number-stripping pass: outreach copy is
+    // exactly where a fabricated "30% faster" would slip in, so each subject and
+    // body is validated like every other prose field before it reaches the
+    // clipboard.
+    prose.outreach = raw.outreach.map((t, i) => ({
+      channel: normalizeChannel(t.channel),
+      subject: clean(t.subject ?? "", `outreach[${i}].subject`),
+      body: clean(t.body ?? "", `outreach[${i}].body`),
+    }));
   }
   return { prose, flags };
 }
@@ -147,15 +158,20 @@ export function parseRawProse(raw: string): RawProse | null {
               discipline: x.discipline,
             }))
         : undefined,
-      outreach:
-        p.outreach &&
-        typeof p.outreach === "object" &&
-        (typeof p.outreach.subject === "string" || typeof p.outreach.body === "string")
-          ? {
-              subject: typeof p.outreach.subject === "string" ? p.outreach.subject : "",
-              body: typeof p.outreach.body === "string" ? p.outreach.body : "",
-            }
-          : undefined,
+      outreach: Array.isArray(p.outreach)
+        ? p.outreach
+            .filter(
+              (x: unknown) =>
+                x &&
+                (typeof (x as { subject?: unknown }).subject === "string" ||
+                  typeof (x as { body?: unknown }).body === "string")
+            )
+            .map((x: { channel?: string; subject?: string; body?: string }) => ({
+              channel: typeof x.channel === "string" ? x.channel : "email",
+              subject: typeof x.subject === "string" ? x.subject : "",
+              body: typeof x.body === "string" ? x.body : "",
+            }))
+        : undefined,
     };
   } catch {
     return null;

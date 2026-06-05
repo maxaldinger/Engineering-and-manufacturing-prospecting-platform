@@ -100,10 +100,13 @@ export function renderBriefText(b: GroundedBrief): string {
   }
   L.push("");
 
-  L.push("Outreach Draft:");
-  if ("subject" in b.outreach) {
-    L.push("  " + field("Subject", b.outreach.subject));
-    L.push("  " + field("Body", b.outreach.body));
+  L.push("Outreach Sequence:");
+  if (Array.isArray(b.outreach)) {
+    for (const t of b.outreach) {
+      L.push(`  Day ${t.day} (${t.channel.toUpperCase()}):`);
+      L.push("    " + field("Subject", t.subject));
+      L.push("    " + field("Body", t.body));
+    }
   } else {
     L.push("  " + field("", b.outreach));
   }

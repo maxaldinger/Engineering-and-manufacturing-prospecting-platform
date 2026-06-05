@@ -77,7 +77,7 @@ function collectFields(b: GroundedBrief): AnyField[] {
     out.push(p.question, p.answer, p.proof);
     if (p.discipline) out.push(p.discipline);
   }
-  if ("subject" in b.outreach) out.push(b.outreach.subject, b.outreach.body);
+  if (Array.isArray(b.outreach)) for (const t of b.outreach) out.push(t.subject, t.body);
   else out.push(b.outreach);
   for (const d of b.displacement) out.push(d.competitor, d.positioning);
   for (const c of b.keyContacts) out.push(c.role, c.dept, c.valueProp, c.tier);
@@ -156,8 +156,8 @@ describe("assembleBrief grounding", () => {
   });
 
   it("without prose, outreach is a visible pending gap, never an invented draft", () => {
-    expect("subject" in brief.outreach).toBe(false);
-    if (!("subject" in brief.outreach)) expect(isCuratedGap(brief.outreach)).toBe(true);
+    expect(Array.isArray(brief.outreach)).toBe(false);
+    if (!Array.isArray(brief.outreach)) expect(isCuratedGap(brief.outreach)).toBe(true);
   });
 
   it("without prose, the why-reseller line is a visible pending gap, never canned", () => {
@@ -180,10 +180,18 @@ describe("assembleBrief with prose: every prose section carries its refs", () =>
         discipline: "cam",
       },
     ],
-    outreach: {
-      subject: "Quick note on your CNC hiring in Denver",
-      body: "Saw your CNC Programmer and Mechanical Design Engineer openings. Worth a short conversation.",
-    },
+    outreach: [
+      {
+        channel: "email",
+        subject: "Quick note on your CNC hiring in Denver",
+        body: "Saw your CNC Programmer and Mechanical Design Engineer openings. Worth a short conversation.",
+      },
+      {
+        channel: "linkedin",
+        subject: "Following up on your programming roles",
+        body: "Your parallel CNC and design hiring is a good moment to compare CAM workflows.",
+      },
+    ],
   };
   const brief = assembleBrief({ group: MIXED_GROUP, routeCount: 2, generatedAt: "2026-06-04T00:00:00Z", prose });
 
@@ -214,13 +222,18 @@ describe("assembleBrief with prose: every prose section carries its refs", () =>
     }
   });
 
-  it("outreach draft is inferred from signals and carries non-empty sourceRef", () => {
-    expect("subject" in brief.outreach).toBe(true);
-    if ("subject" in brief.outreach) {
-      expect(brief.outreach.subject.provenance).toBe("inferred");
-      expect(brief.outreach.body.provenance).toBe("inferred");
-      if (brief.outreach.body.provenance === "inferred") {
-        expect(brief.outreach.body.sourceRef?.length).toBeGreaterThan(0);
+  it("outreach is a grounded multi-touch sequence, each touch inferred with refs", () => {
+    expect(Array.isArray(brief.outreach)).toBe(true);
+    if (Array.isArray(brief.outreach)) {
+      expect(brief.outreach.length).toBeGreaterThan(1);
+      // cadence days are assigned by step, ascending
+      expect(brief.outreach[0].day).toBeLessThan(brief.outreach[1].day);
+      for (const t of brief.outreach) {
+        expect(t.subject.provenance).toBe("inferred");
+        expect(t.body.provenance).toBe("inferred");
+        if (t.body.provenance === "inferred") {
+          expect(t.body.sourceRef?.length).toBeGreaterThan(0);
+        }
       }
     }
   });
