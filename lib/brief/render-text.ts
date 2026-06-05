@@ -49,7 +49,8 @@ export function renderBriefText(b: GroundedBrief): string {
   for (const d of b.disciplines) L.push("  " + field("·", d));
   L.push("");
 
-  L.push(`Why ${b.reseller.name} (${b.reseller.short}): ${b.reseller.supportLine}.`);
+  L.push(`Why ${b.reseller.name} (${b.reseller.short}):`);
+  L.push("  " + field("", b.whyReseller));
   L.push("");
 
   L.push("Executive Summary:");

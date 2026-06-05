@@ -65,6 +65,7 @@ function collectFields(b: GroundedBrief): AnyField[] {
     b.header.vertical,
     b.header.fitScore,
     b.header.motionField,
+    b.whyReseller,
     b.executiveSummary,
     ...b.disciplines,
   ];
@@ -155,11 +156,19 @@ describe("assembleBrief grounding", () => {
     expect("subject" in brief.outreach).toBe(false);
     if (!("subject" in brief.outreach)) expect(isCuratedGap(brief.outreach)).toBe(true);
   });
+
+  it("without prose, the why-reseller line is a visible pending gap, never canned", () => {
+    expect(brief.whyReseller.provenance).toBe("curated");
+    if (brief.whyReseller.provenance === "curated") {
+      expect(isCuratedGap(brief.whyReseller)).toBe(true);
+    }
+  });
 });
 
 describe("assembleBrief with prose: every prose section carries its refs", () => {
   const prose: BriefProse = {
     executiveSummary: "Acme is hiring CNC programmers and mechanical designers in Denver.",
+    whyReseller: "Their parallel CNC and design hiring is exactly where HRS training and implementation support helps.",
     painPoints: [{ text: "CAD to CAM handoff friction implied by parallel hiring.", discipline: "cam" }],
     talkingPoints: [{ text: "Open on their CNC Programmer posting.", discipline: "cam" }],
     outreach: {
@@ -173,6 +182,10 @@ describe("assembleBrief with prose: every prose section carries its refs", () =>
     const summary = brief.executiveSummary;
     expect(summary.provenance).toBe("inferred");
     if (summary.provenance === "inferred") expect(summary.sourceRef?.length).toBeGreaterThan(0);
+
+    const why = brief.whyReseller;
+    expect(why.provenance).toBe("inferred");
+    if (why.provenance === "inferred") expect(why.sourceRef?.length).toBeGreaterThan(0);
 
     for (const p of [...brief.painPoints, ...brief.talkingPoints]) {
       expect(p.text.provenance).toBe("inferred");

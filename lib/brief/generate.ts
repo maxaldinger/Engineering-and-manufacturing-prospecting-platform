@@ -8,13 +8,15 @@
 import type { CompanyGroup } from "@/lib/signal-grouping";
 import type { ProductTypeId } from "@/types/product";
 import { buildSignalDigest } from "@/components/dossier/brief";
+import { BRAND } from "@/lib/brand";
 import { validateProse } from "./validator";
 import type { BriefProse } from "./assemble";
 
-export const GROUNDED_SYSTEM_PROMPT = `You are a sales analyst summarizing public signal data for one prospect. Reply with ONLY a single JSON object, no prose, no markdown fences:
+export const GROUNDED_SYSTEM_PROMPT = `You are a sales analyst summarizing public signal data for one prospect. You represent ${BRAND.reseller.name} (${BRAND.reseller.short}), whose real capabilities are: ${BRAND.reseller.supportLine}. Reply with ONLY a single JSON object, no prose, no markdown fences:
 
 {
   "executiveSummary": "<2-3 sentences. Summarize ONLY what the signals show: their situation, why they are on the radar, the engineering or manufacturing pressure visible in the signals.>",
+  "whyReseller": "<1-2 sentences on why ${BRAND.reseller.short} is a fit for THIS prospect, tying ${BRAND.reseller.short}'s real capabilities stated above to their specific signals and detected tools. No numbers.>",
   "painPoints": [ { "text": "<one pain point implied by a specific signal>", "discipline": "<cad|cam|simulation|electrical|design-automation|additive|mfg-services, optional>" } ],
   "talkingPoints": [ { "text": "<a specific opener that references a signal>", "discipline": "<optional>" } ],
   "outreach": { "subject": "<a 6-10 word cold-email subject line>", "body": "<a 3-5 sentence cold email referencing one specific signal and one product capability, no greeting fluff>" }
@@ -22,8 +24,10 @@ export const GROUNDED_SYSTEM_PROMPT = `You are a sales analyst summarizing publi
 
 Strict rules:
 - SUMMARY ONLY. Paraphrase the provided signals. Do NOT extrapolate, infer beyond them, or add anything not present in the input.
-- No statistics, no percentages, no dollar figures, and no specific numbers unless that exact number appears in a provided signal.
+- For whyReseller, use ONLY ${BRAND.reseller.short}'s real capabilities stated above. Do NOT invent other capabilities, certifications, numbers, or customers.
+- No statistics, no percentages, no dollar figures, and no specific numbers unless that exact number appears in a provided signal. Use qualitative quantifiers ("multiple", "several", "junior through senior"), never counts.
 - No named customers, no case studies, no competitive claims that are not in the provided "Recommended fit" block.
+- Attribute each observation to the specific signal that carries it. Do NOT assert an attribute holds across signals when only one signal shows it.
 - If the signals are thin, return fewer items. Never pad with invention.
 - No em dashes. Use commas or restructure.`;
 
@@ -52,6 +56,7 @@ export function allowedNumbersFromGroup(group: CompanyGroup): string[] {
 
 export interface RawProse {
   executiveSummary?: string;
+  whyReseller?: string;
   painPoints?: { text: string; discipline?: ProductTypeId }[];
   talkingPoints?: { text: string; discipline?: ProductTypeId }[];
   outreach?: { subject: string; body: string };
@@ -82,6 +87,9 @@ export function groundProse(raw: RawProse, group: CompanyGroup): GroundedProseRe
   const prose: BriefProse = {};
   if (raw.executiveSummary) {
     prose.executiveSummary = clean(raw.executiveSummary, "executiveSummary");
+  }
+  if (raw.whyReseller) {
+    prose.whyReseller = clean(raw.whyReseller, "whyReseller");
   }
   if (raw.painPoints?.length) {
     prose.painPoints = raw.painPoints.map((p, i) => ({
@@ -120,6 +128,7 @@ export function parseRawProse(raw: string): RawProse | null {
     return {
       executiveSummary:
         typeof p.executiveSummary === "string" ? p.executiveSummary : undefined,
+      whyReseller: typeof p.whyReseller === "string" ? p.whyReseller : undefined,
       painPoints: Array.isArray(p.painPoints)
         ? p.painPoints
             .filter((x: unknown) => x && typeof (x as { text?: unknown }).text === "string")

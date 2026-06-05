@@ -223,9 +223,7 @@ export function GroundedBriefView({
       </div>
 
       <Section title={`Why ${brief.reseller.name}`}>
-        <p className="text-sm text-text-primary px-1">
-          {brief.reseller.short} provides {brief.reseller.supportLine}.
-        </p>
+        <p className="px-1"><FieldText f={brief.whyReseller} /></p>
       </Section>
 
       <Section title="Executive Summary">

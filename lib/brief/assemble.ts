@@ -90,6 +90,7 @@ export interface GroundedBrief {
   };
   disciplines: DisciplineField[];
   reseller: { name: string; short: string; supportLine: string };
+  whyReseller: InferredField | CuratedGap; // grounded per-company line or pending
   executiveSummary: InferredField | CuratedGap; // LLM prose or pending
   painPoints: PainPoint[];
   talkingPoints: ProseSection[];
@@ -103,6 +104,7 @@ export interface GroundedBrief {
 
 export interface BriefProse {
   executiveSummary?: string;
+  whyReseller?: string;
   painPoints?: { text: string; discipline?: ProductTypeId }[];
   talkingPoints?: { text: string; discipline?: ProductTypeId }[];
   outreach?: { subject: string; body: string };
@@ -308,6 +310,13 @@ export function assembleBrief(input: AssembleInput): GroundedBrief {
       short: BRAND.reseller.short,
       supportLine: BRAND.reseller.supportLine,
     },
+    whyReseller: prose?.whyReseller
+      ? inferredFromSignals(
+          prose.whyReseller,
+          `${BRAND.reseller.short} capabilities tied to the prospect's signals`,
+          refs
+        )
+      : curatedGap("pending AI fit rationale (set ANTHROPIC_API_KEY)"),
     executiveSummary: prose?.executiveSummary
       ? inferredFromSignals(prose.executiveSummary, "summary of the prospect's signals", refs)
       : curatedGap("pending AI summary (set ANTHROPIC_API_KEY)"),

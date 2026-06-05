@@ -71,6 +71,17 @@ describe("groundProse contains the model", () => {
     expect(nums.some((n) => n.includes("14.6"))).toBe(true);
   });
 
+  it("strips an injected stat from the why-reseller line", () => {
+    const group = mkGroup([{ title: "CNC Programmer", description: "Hiring for production." }]);
+    const { prose, flags } = groundProse(
+      { whyReseller: "HRS has trained over 5,000 engineers and fits your CNC hiring." },
+      group
+    );
+    expect(flags.some((f) => f.field === "whyReseller" && f.reason === "unsourced-number")).toBe(true);
+    expect(prose.whyReseller).toContain("[unverified]");
+    expect(prose.whyReseller).not.toMatch(/5,?000/);
+  });
+
   it("strips an injected stat from the outreach body so the clipboard stays grounded", () => {
     const group = mkGroup([{ title: "CNC Programmer", description: "Hiring for production." }]);
     const { prose, flags } = groundProse(
@@ -101,6 +112,11 @@ describe("parseRawProse", () => {
     const ok = parseRawProse('{"outreach":{"subject":"s","body":"b"}}');
     expect(ok?.outreach?.subject).toBe("s");
     expect(ok?.outreach?.body).toBe("b");
+  });
+
+  it("parses whyReseller and rejects a non-string", () => {
+    expect(parseRawProse('{"whyReseller":"fits your stack"}')?.whyReseller).toBe("fits your stack");
+    expect(parseRawProse('{"whyReseller":42}')?.whyReseller).toBeUndefined();
   });
 
   it("omits outreach when it is malformed", () => {
