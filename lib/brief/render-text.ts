@@ -75,15 +75,6 @@ export function renderBriefText(b: GroundedBrief): string {
   }
   L.push("");
 
-  L.push("Outreach Draft:");
-  if ("subject" in b.outreach) {
-    L.push("  " + field("Subject", b.outreach.subject));
-    L.push("  " + field("Body", b.outreach.body));
-  } else {
-    L.push("  " + field("", b.outreach));
-  }
-  L.push("");
-
   L.push(`Competitive Displacement (${b.displacement.length}):`);
   for (const d of b.displacement) {
     L.push("  " + field("Competitor", d.competitor));
@@ -106,6 +97,15 @@ export function renderBriefText(b: GroundedBrief): string {
   for (const r of b.relatedSignals) {
     L.push("  " + field("Headline", r.headline));
     L.push("    " + field("relevance", r.relevance));
+  }
+  L.push("");
+
+  L.push("Outreach Draft:");
+  if ("subject" in b.outreach) {
+    L.push("  " + field("Subject", b.outreach.subject));
+    L.push("  " + field("Body", b.outreach.body));
+  } else {
+    L.push("  " + field("", b.outreach));
   }
 
   return L.join("\n");

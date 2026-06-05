@@ -29,8 +29,14 @@ import {
   type BriefProse,
   type KeyContact,
 } from "@/lib/brief/assemble";
-import { GroundedBriefView, FieldText, fieldValue } from "./grounded-brief-view";
-import type { CompanyGroup, Urgency } from "@/lib/signal-grouping";
+import {
+  GroundedBriefView,
+  OutreachCard,
+  Section,
+  FieldText,
+  fieldValue,
+} from "./grounded-brief-view";
+import type { CompanyGroup } from "@/lib/signal-grouping";
 import type { Signal } from "@/types/signal";
 import type { Contact } from "@/types/contact";
 
@@ -51,24 +57,33 @@ function cacheKey(group: CompanyGroup): string {
   return `${group.company}|${group.state}|${ids}`;
 }
 
-const URGENCY_BADGE: Record<Urgency, string> = {
-  high: "bg-red-50 text-red-700 border-red-200",
-  medium: "bg-amber-50 text-amber-700 border-amber-200",
-  low: "bg-emerald-50 text-emerald-700 border-emerald-200",
-};
-
-function urgencyForSignal(s: Signal): Urgency {
-  if (s.signalStrength >= 80) return "high";
-  if (s.signalStrength >= 55) return "medium";
-  return "low";
-}
-
 const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   "Job Posting": Briefcase,
   News: Newspaper,
   "Gov Contract": Landmark,
   "Tech Adoption": BookMarked,
 };
+
+// Adzuna and some ATS feeds prefix descriptions with label-soup
+// ("Job Title: X  Job Category: Y  Time Type: ...") before the real prose. Strip
+// a leading run of known Label: value segments and return the actual sentence;
+// fall back to the original if stripping would leave nothing.
+const SIGNAL_LABELS =
+  "Job Title|Job Category|Job Type|Time Type|Posted Date|Posted|Location|Department|Requisition ID|Requisition|Req ID|Employment Type|Schedule|Category|Brand|Division|Worker Type|Pay Range|Salary";
+const SIGNAL_LABEL_HEAD = new RegExp(`^\\s*(?:${SIGNAL_LABELS})\\s*:`, "i");
+const SIGNAL_LABEL_SEGMENT = new RegExp(
+  `^\\s*(?:${SIGNAL_LABELS})\\s*:\\s*.*?(?=(?:${SIGNAL_LABELS})\\s*:|$)`,
+  "i"
+);
+
+function cleanSignalText(desc: string): string {
+  const original = (desc ?? "").trim();
+  let t = original;
+  for (let i = 0; i < 12 && SIGNAL_LABEL_HEAD.test(t); i++) {
+    t = t.replace(SIGNAL_LABEL_SEGMENT, "").trimStart();
+  }
+  return t.trim() || original;
+}
 
 export function CompanyDossier({ group }: CompanyDossierProps) {
   const router = useRouter();
@@ -223,73 +238,18 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
           )}
           {briefError && <p className="text-xs text-amber-700 px-1">{briefError}</p>}
 
-          {/* Grounded brief: header (single computed fit), why-reseller, exec
-              summary, pain points, talking points, outreach (+ Copy), and
-              competitive displacement. Contacts and signals are owned by the
-              dossier below, so the brief's slimmer versions are suppressed. */}
-          <GroundedBriefView brief={brief} hideContacts hideRelatedSignals />
+          {/* Grounded brief sections 1-6: header (single computed fit),
+              why-reseller, exec summary, pain points (computed severity),
+              talking points (Q&A), competitive displacement. Key contacts,
+              related signals, and the outreach draft are owned by the dossier
+              below so they render in the reference order with richer data. */}
+          <GroundedBriefView brief={brief} hideContacts hideRelatedSignals hideOutreach />
 
-          {/* SIGNALS */}
-          <Section title="Signals">
-            <ul className="space-y-2">
-              {group.signals.map((s) => {
-                const u = urgencyForSignal(s);
-                const Icon = TYPE_ICON[s.signalType] ?? Briefcase;
-                const detected = s.detectedSoftware
-                  .filter((x) => x.name)
-                  .map((x) => x.name);
-                return (
-                  <li
-                    key={s.id}
-                    className="flex items-start gap-3 rounded-md border border-border bg-surface px-3 py-2.5"
-                  >
-                    <Icon className="h-3.5 w-3.5 text-text-muted mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <a
-                        href={s.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm font-medium text-text-primary hover:text-primary inline-flex items-start gap-1"
-                      >
-                        <span className="flex-1">{s.title}</span>
-                        <ExternalLink className="h-2.5 w-2.5 text-text-muted mt-1.5 flex-shrink-0" />
-                      </a>
-                      <p className="text-xs text-text-secondary mt-0.5 leading-relaxed line-clamp-2">
-                        {s.description}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-[10px] text-text-muted">
-                          {s.sourceLabel} · {s.postedAgo}
-                        </span>
-                        {detected.map((d) => (
-                          <span
-                            key={d}
-                            className="text-[10px] font-medium text-primary"
-                          >
-                            {d}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border flex-shrink-0",
-                        URGENCY_BADGE[u]
-                      )}
-                    >
-                      {u.toUpperCase()}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </Section>
-
-          {/* CONTACTS: real ZoomInfo people render as detected cards; the
-              no-ZoomInfo fallback renders tagged role templates (see
-              TemplateContactGrid), never a bare assertion. */}
+          {/* 7. KEY CONTACTS: real ZoomInfo people render as detected cards; the
+              no-ZoomInfo fallback renders tagged role templates, never a bare
+              assertion. */}
           <Section
-            title={realContacts.length > 0 ? "Contacts" : "Target Contacts"}
+            title={realContacts.length > 0 ? "Key Contacts" : "Target Contacts"}
             action={
               realContacts.length > 0 ? (
                 <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-semibold text-primary">
@@ -318,9 +278,62 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
             )}
           </Section>
 
+          {/* 8. RELATED SIGNALS: the actual description sentence (label-soup
+              stripped), a clean relevance score, source and date. */}
+          <Section title="Related Signals">
+            <ul className="space-y-2 px-1">
+              {group.signals.map((s) => {
+                const Icon = TYPE_ICON[s.signalType] ?? Briefcase;
+                const desc = cleanSignalText(s.description);
+                return (
+                  <li
+                    key={s.id}
+                    className="flex items-start gap-3 rounded-lg border border-border bg-surface px-3 py-2.5"
+                  >
+                    <Icon className="h-3.5 w-3.5 text-text-muted mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <a
+                        href={s.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm font-medium text-text-primary hover:text-primary inline-flex items-start gap-1"
+                      >
+                        <span className="flex-1">{s.title}</span>
+                        <ExternalLink className="h-2.5 w-2.5 text-text-muted mt-1.5 flex-shrink-0" />
+                      </a>
+                      {desc && (
+                        <p className="text-xs text-text-secondary mt-0.5 leading-relaxed line-clamp-2">
+                          {desc}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-text-muted mt-1">
+                        {s.sourceLabel} · {s.postedAgo}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end flex-shrink-0">
+                      <span className="text-sm font-bold tabular-nums text-text-primary leading-none">
+                        {s.signalStrength}
+                      </span>
+                      <span className="text-[8px] uppercase tracking-wider text-text-muted">
+                        relevance
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Section>
+
+          {/* 9. OUTREACH DRAFT + Copy (grounded, validated) */}
+          <Section title="Outreach Draft">
+            <div className="px-1">
+              <OutreachCard outreach={brief.outreach} />
+            </div>
+          </Section>
+
           {/* Action: Sales Assist only. Add to Territory and Mark Pursuing
-              removed: both were toast-only stubs with no backend, HRS's to
-              build. The Sales Assist entry point is preserved verbatim. */}
+              removed (toast-only stubs, HRS's to build). The Sales Assist entry
+              point is preserved verbatim. */}
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <Button onClick={sendToAssist} className="sm:flex-1">
               <Sparkles className="h-4 w-4" />
@@ -355,28 +368,6 @@ function TabButton({
     >
       {children}
     </button>
-  );
-}
-
-function Section({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section>
-      <div className="flex items-center justify-between mb-2 px-1">
-        <h3 className="text-[10px] uppercase tracking-widest font-semibold text-text-secondary">
-          {title}
-        </h3>
-        {action}
-      </div>
-      {children}
-    </section>
   );
 }
 
