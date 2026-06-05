@@ -16,7 +16,8 @@ export const GROUNDED_SYSTEM_PROMPT = `You are a sales analyst summarizing publi
 {
   "executiveSummary": "<2-3 sentences. Summarize ONLY what the signals show: their situation, why they are on the radar, the engineering or manufacturing pressure visible in the signals.>",
   "painPoints": [ { "text": "<one pain point implied by a specific signal>", "discipline": "<cad|cam|simulation|electrical|design-automation|additive|mfg-services, optional>" } ],
-  "talkingPoints": [ { "text": "<a specific opener that references a signal>", "discipline": "<optional>" } ]
+  "talkingPoints": [ { "text": "<a specific opener that references a signal>", "discipline": "<optional>" } ],
+  "outreach": { "subject": "<a 6-10 word cold-email subject line>", "body": "<a 3-5 sentence cold email referencing one specific signal and one product capability, no greeting fluff>" }
 }
 
 Strict rules:
@@ -53,6 +54,7 @@ export interface RawProse {
   executiveSummary?: string;
   painPoints?: { text: string; discipline?: ProductTypeId }[];
   talkingPoints?: { text: string; discipline?: ProductTypeId }[];
+  outreach?: { subject: string; body: string };
 }
 
 export interface ProseFlag {
@@ -93,6 +95,15 @@ export function groundProse(raw: RawProse, group: CompanyGroup): GroundedProseRe
       discipline: p.discipline,
     }));
   }
+  if (raw.outreach && (raw.outreach.subject || raw.outreach.body)) {
+    // Outreach copy runs through the same number-stripping pass: a cold email is
+    // exactly where a fabricated "30% faster" would slip in, so subject and body
+    // are validated like every other prose field before they reach the clipboard.
+    prose.outreach = {
+      subject: clean(raw.outreach.subject ?? "", "outreach.subject"),
+      body: clean(raw.outreach.body ?? "", "outreach.body"),
+    };
+  }
   return { prose, flags };
 }
 
@@ -125,6 +136,15 @@ export function parseRawProse(raw: string): RawProse | null {
               discipline: x.discipline,
             }))
         : undefined,
+      outreach:
+        p.outreach &&
+        typeof p.outreach === "object" &&
+        (typeof p.outreach.subject === "string" || typeof p.outreach.body === "string")
+          ? {
+              subject: typeof p.outreach.subject === "string" ? p.outreach.subject : "",
+              body: typeof p.outreach.body === "string" ? p.outreach.body : "",
+            }
+          : undefined,
     };
   } catch {
     return null;

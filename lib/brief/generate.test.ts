@@ -70,6 +70,23 @@ describe("groundProse contains the model", () => {
     const nums = allowedNumbersFromGroup(group);
     expect(nums.some((n) => n.includes("14.6"))).toBe(true);
   });
+
+  it("strips an injected stat from the outreach body so the clipboard stays grounded", () => {
+    const group = mkGroup([{ title: "CNC Programmer", description: "Hiring for production." }]);
+    const { prose, flags } = groundProse(
+      {
+        outreach: {
+          subject: "Quick question on your CNC hiring",
+          body: "Saw your CNC Programmer opening. Teams like yours cut scrap by 40% after switching.",
+        },
+      },
+      group
+    );
+    expect(flags.some((f) => f.field === "outreach.body" && f.reason === "unsourced-number")).toBe(true);
+    expect(prose.outreach?.body).toContain("[unverified]");
+    expect(prose.outreach?.body).not.toMatch(/40\s?%/);
+    expect(prose.outreach?.subject).toContain("CNC");
+  });
 });
 
 describe("parseRawProse", () => {
@@ -78,5 +95,16 @@ describe("parseRawProse", () => {
     expect(ok?.executiveSummary).toBe("hi");
     expect(ok?.painPoints?.[0]?.text).toBe("p1");
     expect(parseRawProse("not json")).toBeNull();
+  });
+
+  it("parses the outreach subject and body", () => {
+    const ok = parseRawProse('{"outreach":{"subject":"s","body":"b"}}');
+    expect(ok?.outreach?.subject).toBe("s");
+    expect(ok?.outreach?.body).toBe("b");
+  });
+
+  it("omits outreach when it is malformed", () => {
+    expect(parseRawProse('{"outreach":42}')?.outreach).toBeUndefined();
+    expect(parseRawProse('{"executiveSummary":"x"}')?.outreach).toBeUndefined();
   });
 });

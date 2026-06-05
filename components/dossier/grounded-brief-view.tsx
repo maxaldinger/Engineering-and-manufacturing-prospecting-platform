@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isCuratedGap, type AnyField } from "@/lib/brief/provenance";
 import type {
@@ -98,6 +98,29 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// Copy-to-clipboard for the grounded outreach draft. The text is already
+// validated prose (no unsourced numbers), so what lands on the clipboard is the
+// same grounded copy the rep sees.
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = React.useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard?.writeText(text).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+      className="inline-flex flex-shrink-0 items-center gap-1 px-2 py-1 rounded border border-border bg-surface-2 text-[11px] font-medium text-text-secondary hover:text-primary hover:border-primary/40"
+      aria-label="Copy outreach draft"
+    >
+      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
 export function GroundedBriefView({ brief }: { brief: GroundedBrief }) {
   const h = brief.header;
   return (
@@ -189,6 +212,36 @@ export function GroundedBriefView({ brief }: { brief: GroundedBrief }) {
           </ul>
         </Section>
       )}
+
+      <Section title="Outreach Draft">
+        {"subject" in brief.outreach ? (
+          <div className="px-1">
+            <div className="rounded-lg border border-border bg-surface p-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-text-primary">
+                  {fieldValue(brief.outreach.subject)}
+                </p>
+                <CopyButton
+                  text={`Subject: ${fieldValue(brief.outreach.subject)}\n\n${fieldValue(brief.outreach.body)}`}
+                />
+              </div>
+              <p className="text-sm text-text-primary whitespace-pre-wrap">
+                {fieldValue(brief.outreach.body)}
+              </p>
+              <div className="flex items-center gap-2">
+                <ProvBadge f={brief.outreach.subject} />
+                <span className="text-[10px] text-text-muted">
+                  grounded draft, review before sending
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="px-1">
+            <FieldText f={brief.outreach} />
+          </p>
+        )}
+      </Section>
 
       {brief.displacement.length > 0 && (
         <Section title="Competitive Displacement">

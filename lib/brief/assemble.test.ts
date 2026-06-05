@@ -73,6 +73,8 @@ function collectFields(b: GroundedBrief): AnyField[] {
     if (p.discipline) out.push(p.discipline);
   }
   for (const p of b.talkingPoints) out.push(p.text, p.proof);
+  if ("subject" in b.outreach) out.push(b.outreach.subject, b.outreach.body);
+  else out.push(b.outreach);
   for (const d of b.displacement) out.push(d.competitor, d.positioning);
   for (const c of b.keyContacts) out.push(c.role, c.dept, c.valueProp, c.tier);
   for (const r of b.relatedSignals) out.push(r.headline, r.source, r.date, r.relevance);
@@ -148,6 +150,11 @@ describe("assembleBrief grounding", () => {
     expect(brief.painPoints).toHaveLength(0);
     expect(brief.talkingPoints).toHaveLength(0);
   });
+
+  it("without prose, outreach is a visible pending gap, never an invented draft", () => {
+    expect("subject" in brief.outreach).toBe(false);
+    if (!("subject" in brief.outreach)) expect(isCuratedGap(brief.outreach)).toBe(true);
+  });
 });
 
 describe("assembleBrief with prose: every prose section carries its refs", () => {
@@ -155,6 +162,10 @@ describe("assembleBrief with prose: every prose section carries its refs", () =>
     executiveSummary: "Acme is hiring CNC programmers and mechanical designers in Denver.",
     painPoints: [{ text: "CAD to CAM handoff friction implied by parallel hiring.", discipline: "cam" }],
     talkingPoints: [{ text: "Open on their CNC Programmer posting.", discipline: "cam" }],
+    outreach: {
+      subject: "Quick note on your CNC hiring in Denver",
+      body: "Saw your CNC Programmer and Mechanical Design Engineer openings. Worth a short conversation.",
+    },
   };
   const brief = assembleBrief({ group: MIXED_GROUP, routeCount: 2, generatedAt: "2026-06-04T00:00:00Z", prose });
 
@@ -166,6 +177,17 @@ describe("assembleBrief with prose: every prose section carries its refs", () =>
     for (const p of [...brief.painPoints, ...brief.talkingPoints]) {
       expect(p.text.provenance).toBe("inferred");
       if (p.text.provenance === "inferred") expect(p.text.sourceRef?.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("outreach draft is inferred from signals and carries non-empty sourceRef", () => {
+    expect("subject" in brief.outreach).toBe(true);
+    if ("subject" in brief.outreach) {
+      expect(brief.outreach.subject.provenance).toBe("inferred");
+      expect(brief.outreach.body.provenance).toBe("inferred");
+      if (brief.outreach.body.provenance === "inferred") {
+        expect(brief.outreach.body.sourceRef?.length).toBeGreaterThan(0);
+      }
     }
   });
 });

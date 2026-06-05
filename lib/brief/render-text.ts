@@ -71,6 +71,15 @@ export function renderBriefText(b: GroundedBrief): string {
   }
   L.push("");
 
+  L.push("Outreach Draft:");
+  if ("subject" in b.outreach) {
+    L.push("  " + field("Subject", b.outreach.subject));
+    L.push("  " + field("Body", b.outreach.body));
+  } else {
+    L.push("  " + field("", b.outreach));
+  }
+  L.push("");
+
   L.push(`Competitive Displacement (${b.displacement.length}):`);
   for (const d of b.displacement) {
     L.push("  " + field("Competitor", d.competitor));

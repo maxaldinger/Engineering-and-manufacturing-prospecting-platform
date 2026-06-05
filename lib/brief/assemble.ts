@@ -59,6 +59,14 @@ export interface ProseSection {
   proof: CuratedField; // proof line / solution, gap until a real battlecard
 }
 
+// Cold-email draft. Subject and body are paraphrase-only and run through the
+// same validator as every other prose field, so the Copy control hands the rep
+// grounded text, never an invented stat. Pending until the LLM prose arrives.
+export interface OutreachDraft {
+  subject: InferredField;
+  body: InferredField;
+}
+
 export interface GroundedBrief {
   generatedAt: string; // report metadata, not a prospect claim
   header: {
@@ -73,6 +81,7 @@ export interface GroundedBrief {
   executiveSummary: InferredField | CuratedGap; // LLM prose or pending
   painPoints: ProseSection[];
   talkingPoints: ProseSection[];
+  outreach: OutreachDraft | CuratedGap; // grounded cold-email draft or pending
   displacement: DisplacementEntry[];
   keyContacts: KeyContact[];
   relatedSignals: RelatedSignal[];
@@ -84,6 +93,7 @@ export interface BriefProse {
   executiveSummary?: string;
   painPoints?: { text: string; discipline?: ProductTypeId }[];
   talkingPoints?: { text: string; discipline?: ProductTypeId }[];
+  outreach?: { subject: string; body: string };
 }
 
 export interface AssembleInput {
@@ -262,6 +272,21 @@ export function assembleBrief(input: AssembleInput): GroundedBrief {
       : curatedGap("pending AI summary (set ANTHROPIC_API_KEY)"),
     painPoints: proseSections(prose?.painPoints, group),
     talkingPoints: proseSections(prose?.talkingPoints, group),
+    outreach:
+      prose?.outreach && (prose.outreach.subject.trim() || prose.outreach.body.trim())
+        ? {
+            subject: inferredFromSignals(
+              prose.outreach.subject,
+              "cold-email subject paraphrased from the prospect's signals",
+              refs
+            ),
+            body: inferredFromSignals(
+              prose.outreach.body,
+              "cold-email body paraphrased from the prospect's signals",
+              refs
+            ),
+          }
+        : curatedGap("pending AI outreach (set ANTHROPIC_API_KEY)"),
     displacement: buildDisplacement(group),
     keyContacts: buildKeyContacts(group),
     relatedSignals: buildRelatedSignals(group),
