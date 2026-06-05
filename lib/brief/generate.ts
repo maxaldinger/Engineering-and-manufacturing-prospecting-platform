@@ -18,7 +18,7 @@ export const GROUNDED_SYSTEM_PROMPT = `You are a sales analyst summarizing publi
   "executiveSummary": "<2-3 sentences. Summarize ONLY what the signals show: their situation, why they are on the radar, the engineering or manufacturing pressure visible in the signals.>",
   "whyReseller": "<1-2 sentences on why ${BRAND.reseller.short} is a fit for THIS prospect, tying ${BRAND.reseller.short}'s real capabilities stated above to their specific signals and detected tools. No numbers.>",
   "painPoints": [ { "text": "<one pain point implied by a specific signal>", "discipline": "<cad|cam|simulation|electrical|design-automation|additive|mfg-services, optional>" } ],
-  "talkingPoints": [ { "text": "<a specific opener that references a signal>", "discipline": "<optional>" } ],
+  "talkingPoints": [ { "question": "<a sharp discovery question that frames a gap implied by a specific signal>", "answer": "<1-2 sentences connecting that question to one of our capabilities, grounded in the same signal>", "discipline": "<optional>" } ],
   "outreach": { "subject": "<a 6-10 word cold-email subject line>", "body": "<a 3-5 sentence cold email referencing one specific signal and one product capability, no greeting fluff>" }
 }
 
@@ -58,7 +58,7 @@ export interface RawProse {
   executiveSummary?: string;
   whyReseller?: string;
   painPoints?: { text: string; discipline?: ProductTypeId }[];
-  talkingPoints?: { text: string; discipline?: ProductTypeId }[];
+  talkingPoints?: { question: string; answer: string; discipline?: ProductTypeId }[];
   outreach?: { subject: string; body: string };
 }
 
@@ -99,7 +99,8 @@ export function groundProse(raw: RawProse, group: CompanyGroup): GroundedProseRe
   }
   if (raw.talkingPoints?.length) {
     prose.talkingPoints = raw.talkingPoints.map((p, i) => ({
-      text: clean(p.text, `talkingPoints[${i}]`),
+      question: clean(p.question, `talkingPoints[${i}].question`),
+      answer: clean(p.answer ?? "", `talkingPoints[${i}].answer`),
       discipline: p.discipline,
     }));
   }
@@ -139,9 +140,10 @@ export function parseRawProse(raw: string): RawProse | null {
         : undefined,
       talkingPoints: Array.isArray(p.talkingPoints)
         ? p.talkingPoints
-            .filter((x: unknown) => x && typeof (x as { text?: unknown }).text === "string")
-            .map((x: { text: string; discipline?: ProductTypeId }) => ({
-              text: x.text,
+            .filter((x: unknown) => x && typeof (x as { question?: unknown }).question === "string")
+            .map((x: { question: string; answer?: string; discipline?: ProductTypeId }) => ({
+              question: x.question,
+              answer: typeof x.answer === "string" ? x.answer : "",
               discipline: x.discipline,
             }))
         : undefined,

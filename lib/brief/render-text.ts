@@ -68,7 +68,9 @@ export function renderBriefText(b: GroundedBrief): string {
 
   L.push(`Suggested Talking Points (${b.talkingPoints.length}):`);
   for (const p of b.talkingPoints) {
-    L.push("  " + field("·", p.text));
+    L.push("  " + field("Q", p.question));
+    L.push("  " + field("A", p.answer));
+    if (p.discipline) L.push("    " + field("discipline", p.discipline));
     L.push("    " + field("proof line", p.proof));
   }
   L.push("");

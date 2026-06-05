@@ -71,6 +71,26 @@ describe("groundProse contains the model", () => {
     expect(nums.some((n) => n.includes("14.6"))).toBe(true);
   });
 
+  it("masks an injected number in a talking-point answer (narrative stays grounded)", () => {
+    const group = mkGroup([{ title: "CNC Programmer", description: "Hiring for production." }]);
+    const { prose, flags } = groundProse(
+      {
+        talkingPoints: [
+          {
+            question: "How is your team handling multi-axis programming?",
+            answer: "Most shops see a 40% throughput gain after switching, worth a conversation.",
+            discipline: "cam",
+          },
+        ],
+      },
+      group
+    );
+    expect(flags.some((f) => f.field === "talkingPoints[0].answer" && f.reason === "unsourced-number")).toBe(true);
+    expect(prose.talkingPoints?.[0]?.answer).toContain("[unverified]");
+    expect(prose.talkingPoints?.[0]?.answer).not.toMatch(/40\s?%/);
+    expect(prose.talkingPoints?.[0]?.question).toContain("multi-axis");
+  });
+
   it("strips an injected stat from the why-reseller line", () => {
     const group = mkGroup([{ title: "CNC Programmer", description: "Hiring for production." }]);
     const { prose, flags } = groundProse(
@@ -117,6 +137,14 @@ describe("parseRawProse", () => {
   it("parses whyReseller and rejects a non-string", () => {
     expect(parseRawProse('{"whyReseller":"fits your stack"}')?.whyReseller).toBe("fits your stack");
     expect(parseRawProse('{"whyReseller":42}')?.whyReseller).toBeUndefined();
+  });
+
+  it("parses talking points as question + answer, dropping entries with no question", () => {
+    const ok = parseRawProse(
+      '{"talkingPoints":[{"question":"q1","answer":"a1"},{"answer":"orphan answer"}]}'
+    );
+    expect(ok?.talkingPoints).toHaveLength(1);
+    expect(ok?.talkingPoints?.[0]).toEqual({ question: "q1", answer: "a1", discipline: undefined });
   });
 
   it("omits outreach when it is malformed", () => {

@@ -248,10 +248,16 @@ export function GroundedBriefView({
 
       {brief.talkingPoints.length > 0 && (
         <Section title="Suggested Talking Points">
-          <ul className="space-y-2 px-1">
+          <ul className="space-y-3 px-1">
             {brief.talkingPoints.map((p, i) => (
               <li key={i} className="text-sm">
-                <FieldText f={p.text} />
+                <FieldText f={p.question} className="font-medium text-text-primary" />
+                {fieldValue(p.answer) && (
+                  <div className="mt-1 pl-3 border-l-2 border-border text-text-secondary">
+                    <FieldText f={p.answer} />
+                  </div>
+                )}
+                <div className="mt-1 text-[11px]"><FieldText f={p.proof} /></div>
               </li>
             ))}
           </ul>

@@ -73,7 +73,10 @@ function collectFields(b: GroundedBrief): AnyField[] {
     out.push(p.text, p.solution, p.severity);
     if (p.discipline) out.push(p.discipline);
   }
-  for (const p of b.talkingPoints) out.push(p.text, p.proof);
+  for (const p of b.talkingPoints) {
+    out.push(p.question, p.answer, p.proof);
+    if (p.discipline) out.push(p.discipline);
+  }
   if ("subject" in b.outreach) out.push(b.outreach.subject, b.outreach.body);
   else out.push(b.outreach);
   for (const d of b.displacement) out.push(d.competitor, d.positioning);
@@ -170,7 +173,13 @@ describe("assembleBrief with prose: every prose section carries its refs", () =>
     executiveSummary: "Acme is hiring CNC programmers and mechanical designers in Denver.",
     whyReseller: "Their parallel CNC and design hiring is exactly where HRS training and implementation support helps.",
     painPoints: [{ text: "CAD to CAM handoff friction implied by parallel hiring.", discipline: "cam" }],
-    talkingPoints: [{ text: "Open on their CNC Programmer posting.", discipline: "cam" }],
+    talkingPoints: [
+      {
+        question: "How are your CNC programmers handling the handoff from design today?",
+        answer: "Their CNC Programmer posting points to a CAM workflow worth a conversation.",
+        discipline: "cam",
+      },
+    ],
     outreach: {
       subject: "Quick note on your CNC hiring in Denver",
       body: "Saw your CNC Programmer and Mechanical Design Engineer openings. Worth a short conversation.",
@@ -187,9 +196,21 @@ describe("assembleBrief with prose: every prose section carries its refs", () =>
     expect(why.provenance).toBe("inferred");
     if (why.provenance === "inferred") expect(why.sourceRef?.length).toBeGreaterThan(0);
 
-    for (const p of [...brief.painPoints, ...brief.talkingPoints]) {
+    for (const p of brief.painPoints) {
       expect(p.text.provenance).toBe("inferred");
       if (p.text.provenance === "inferred") expect(p.text.sourceRef?.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("talking points are question + answer, both inferred with refs, proof a pending gap", () => {
+    expect(brief.talkingPoints.length).toBeGreaterThan(0);
+    for (const p of brief.talkingPoints) {
+      expect(p.question.provenance).toBe("inferred");
+      expect(p.answer.provenance).toBe("inferred");
+      if (p.question.provenance === "inferred") expect(p.question.sourceRef?.length).toBeGreaterThan(0);
+      if (p.answer.provenance === "inferred") expect(p.answer.sourceRef?.length).toBeGreaterThan(0);
+      expect(p.proof.provenance).toBe("curated");
+      expect(isCuratedGap(p.proof)).toBe(true);
     }
   });
 

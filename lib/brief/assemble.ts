@@ -54,10 +54,14 @@ export interface KeyContact {
   named: boolean; // true only with ZoomInfo
 }
 
-export interface ProseSection {
-  text: InferredField;
+// A suggested talking point, structured as a discovery question plus a grounded
+// answer. Both are inferred prose carrying their signal refs; proof is the curated
+// battlecard slot, a visible gap until a real proof line exists.
+export interface TalkingPoint {
+  question: InferredField;
+  answer: InferredField;
   discipline?: DisciplineField;
-  proof: CuratedField; // proof line / solution, gap until a real battlecard
+  proof: CuratedField;
 }
 
 // A likely pain point. text + discipline are inferred prose; severity is COMPUTED
@@ -93,7 +97,7 @@ export interface GroundedBrief {
   whyReseller: InferredField | CuratedGap; // grounded per-company line or pending
   executiveSummary: InferredField | CuratedGap; // LLM prose or pending
   painPoints: PainPoint[];
-  talkingPoints: ProseSection[];
+  talkingPoints: TalkingPoint[];
   outreach: OutreachDraft | CuratedGap; // grounded cold-email draft or pending
   displacement: DisplacementEntry[];
   keyContacts: KeyContact[];
@@ -106,7 +110,7 @@ export interface BriefProse {
   executiveSummary?: string;
   whyReseller?: string;
   painPoints?: { text: string; discipline?: ProductTypeId }[];
-  talkingPoints?: { text: string; discipline?: ProductTypeId }[];
+  talkingPoints?: { question: string; answer: string; discipline?: ProductTypeId }[];
   outreach?: { subject: string; body: string };
 }
 
@@ -250,14 +254,25 @@ function disciplineField(discipline?: ProductTypeId): DisciplineField | undefine
     : undefined;
 }
 
-function proseSections(
-  items: { text: string; discipline?: ProductTypeId }[] | undefined,
+// Talking points: each is a discovery question plus a grounded answer, both
+// inferred prose carrying their signal refs. The proof slot stays a pending gap.
+function buildTalkingPoints(
+  items: { question: string; answer: string; discipline?: ProductTypeId }[] | undefined,
   group: CompanyGroup
-): ProseSection[] {
+): TalkingPoint[] {
   if (!items || items.length === 0) return [];
   const refs = allRefs(group);
   return items.map((p) => ({
-    text: inferredFromSignals(p.text, "paraphrase of the prospect's signals", refs),
+    question: inferredFromSignals(
+      p.question,
+      "discovery question framed from the prospect's signals",
+      refs
+    ),
+    answer: inferredFromSignals(
+      p.answer,
+      "answer tying our capability to the prospect's signals",
+      refs
+    ),
     discipline: disciplineField(p.discipline),
     proof: curatedGap("pending HRS battlecard"),
   }));
@@ -321,7 +336,7 @@ export function assembleBrief(input: AssembleInput): GroundedBrief {
       ? inferredFromSignals(prose.executiveSummary, "summary of the prospect's signals", refs)
       : curatedGap("pending AI summary (set ANTHROPIC_API_KEY)"),
     painPoints: buildPainPoints(prose?.painPoints, group),
-    talkingPoints: proseSections(prose?.talkingPoints, group),
+    talkingPoints: buildTalkingPoints(prose?.talkingPoints, group),
     outreach:
       prose?.outreach && (prose.outreach.subject.trim() || prose.outreach.body.trim())
         ? {
