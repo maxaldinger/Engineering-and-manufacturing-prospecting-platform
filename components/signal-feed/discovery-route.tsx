@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProductTypeId } from "@/types/product";
 import { DISCOVERY_ROUTE_TYPES } from "@/lib/catalog";
@@ -17,6 +18,14 @@ interface DiscoveryRouteProps {
 // derived detection terms (frozen by the golden snapshot), visually distinct.
 export function DiscoveryRoute({ selected, onSelect }: DiscoveryRouteProps) {
   const query = React.useMemo(() => buildDiscoveryQuery(selected), [selected]);
+  // The term preview is dense, so it stays collapsed by default and the rep opens
+  // it on demand. The choice persists while they switch routes.
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const termCount =
+    query.roles.length +
+    query.sectors.length +
+    query.software.length +
+    query.keywords.length;
 
   return (
     <div className="glass-panel p-4 space-y-3">
@@ -54,7 +63,23 @@ export function DiscoveryRoute({ selected, onSelect }: DiscoveryRouteProps) {
         })}
       </div>
 
-      <RoutePreview query={query} />
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setPreviewOpen((v) => !v)}
+          aria-expanded={previewOpen}
+          className="inline-flex items-center gap-1.5 text-[11px] font-medium text-text-secondary hover:text-primary transition-colors"
+        >
+          <ChevronRight
+            className={cn("h-3.5 w-3.5 transition-transform", previewOpen && "rotate-90")}
+          />
+          {previewOpen ? "Hide" : "Preview"} search terms
+          <span className="text-text-muted font-normal">
+            · {termCount} for {query.label}
+          </span>
+        </button>
+        {previewOpen && <RoutePreview query={query} />}
+      </div>
     </div>
   );
 }
