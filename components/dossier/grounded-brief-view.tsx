@@ -210,11 +210,11 @@ function DisciplineTag({ d }: { d: DisciplineField }) {
 const SECTION_ORDER = [
   "why",
   "exec",
+  "related",
   "pain",
   "talking",
   "displacement",
   "contacts",
-  "related",
   "outreach",
 ] as const;
 export type SectionKey = (typeof SECTION_ORDER)[number];
@@ -371,11 +371,15 @@ export function GroundedBriefView({
   hideContacts = false,
   hideRelatedSignals = false,
   hideOutreach = false,
+  relatedSignalsSlot,
 }: {
   brief: GroundedBrief;
   hideContacts?: boolean;
   hideRelatedSignals?: boolean;
   hideOutreach?: boolean;
+  // The dossier owns the richer Related Signals (with descriptions). When passed,
+  // it renders here at section 3, right after the executive summary.
+  relatedSignalsSlot?: React.ReactNode;
 }) {
   const h = brief.header;
   const routeCount = h.fitScore.basis.inputs.routeCount ?? 1;
@@ -438,6 +442,33 @@ export function GroundedBriefView({
           <FieldText f={brief.executiveSummary} />
         </p>
       </Section>
+
+      {(relatedSignalsSlot || !hideRelatedSignals) && (
+        <Section num={num("related")} icon={Activity} title="Related Signals">
+          {relatedSignalsSlot ?? (
+            <ul className="space-y-2">
+              {brief.relatedSignals.map((r, i) => (
+                <li
+                  key={i}
+                  className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface px-3.5 py-2.5"
+                >
+                  <a
+                    href={r.headline.sourceRef[0]?.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-text-primary hover:text-primary flex-1"
+                  >
+                    {fieldValue(r.headline)}
+                  </a>
+                  <span className="flex-shrink-0 text-[10px] tabular-nums text-text-muted">
+                    {fieldValue(r.relevance)} <ProvBadge f={r.relevance} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      )}
 
       {brief.painPoints.length > 0 && (
         <Section num={num("pain")} icon={AlertTriangle} title="Likely Pain Points" accent="amber">
@@ -532,31 +563,6 @@ export function GroundedBriefView({
               </div>
             ))}
           </div>
-        </Section>
-      )}
-
-      {!hideRelatedSignals && (
-        <Section num={num("related")} icon={Activity} title="Related Signals">
-          <ul className="space-y-2">
-            {brief.relatedSignals.map((r, i) => (
-              <li
-                key={i}
-                className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface px-3.5 py-2.5"
-              >
-                <a
-                  href={r.headline.sourceRef[0]?.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-text-primary hover:text-primary flex-1"
-                >
-                  {fieldValue(r.headline)}
-                </a>
-                <span className="flex-shrink-0 text-[10px] tabular-nums text-text-muted">
-                  {fieldValue(r.relevance)} <ProvBadge f={r.relevance} />
-                </span>
-              </li>
-            ))}
-          </ul>
         </Section>
       )}
 

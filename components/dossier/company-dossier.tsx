@@ -13,7 +13,6 @@ import {
   Mail,
   Phone,
   Users,
-  Activity,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -249,12 +248,16 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
 
           {/* The brief and the dossier-owned tail sections share one rhythm. */}
           <div className="space-y-7">
-          {/* Grounded brief: header (single computed fit), why-reseller, exec
-              summary, pain points (computed severity), talking points (Q&A),
-              competitive displacement. Key contacts, related signals, and the
-              outreach draft are owned by the dossier below so they render in
-              the reference order with richer data. */}
-          <GroundedBriefView brief={brief} hideContacts hideRelatedSignals hideOutreach />
+          {/* Grounded brief. Related Signals renders at section 3 (right after
+              the executive summary) via a slot so it can use the dossier's richer
+              signal data with descriptions. Key Contacts and the Outreach Sequence
+              are rendered by the dossier below, in order. */}
+          <GroundedBriefView
+            brief={brief}
+            hideContacts
+            hideOutreach
+            relatedSignalsSlot={<RelatedSignalsList signals={group.signals} />}
+          />
 
           {/* 7. KEY CONTACTS: real ZoomInfo people render as detected cards; the
               no-ZoomInfo fallback renders tagged role templates, never a bare
@@ -289,52 +292,6 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
             ) : (
               <TemplateContactGrid contacts={contactTemplates} company={group.company} />
             )}
-          </Section>
-
-          {/* RELATED SIGNALS: the actual description sentence (label-soup
-              stripped), a clean relevance score, source and date. */}
-          <Section num={sectionNumber(brief, "related")} icon={Activity} title="Related Signals">
-            <ul className="space-y-2">
-              {group.signals.map((s) => {
-                const Icon = TYPE_ICON[s.signalType] ?? Briefcase;
-                const desc = cleanSignalText(s.description);
-                return (
-                  <li
-                    key={s.id}
-                    className="flex items-start gap-3 rounded-lg border border-border bg-surface px-3 py-2.5"
-                  >
-                    <Icon className="h-3.5 w-3.5 text-text-muted mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <a
-                        href={s.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm font-medium text-text-primary hover:text-primary inline-flex items-start gap-1"
-                      >
-                        <span className="flex-1">{s.title}</span>
-                        <ExternalLink className="h-2.5 w-2.5 text-text-muted mt-1.5 flex-shrink-0" />
-                      </a>
-                      {desc && (
-                        <p className="text-xs text-text-secondary mt-0.5 leading-relaxed line-clamp-2">
-                          {desc}
-                        </p>
-                      )}
-                      <p className="text-[10px] text-text-muted mt-1">
-                        {s.sourceLabel} · {s.postedAgo}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end flex-shrink-0">
-                      <span className="text-sm font-bold tabular-nums text-text-primary leading-none">
-                        {s.signalStrength}
-                      </span>
-                      <span className="text-[8px] uppercase tracking-wider text-text-muted">
-                        relevance
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
           </Section>
 
           {/* OUTREACH SEQUENCE + per-touch Copy (grounded, validated) */}
@@ -512,6 +469,53 @@ function TemplateContactGrid({
         );
       })}
     </div>
+  );
+}
+
+// The dossier's richer Related Signals list (cleaned description sentence, source,
+// date, relevance score). Rendered into the brief at section 3 via
+// GroundedBriefView's relatedSignalsSlot.
+function RelatedSignalsList({ signals }: { signals: Signal[] }) {
+  return (
+    <ul className="space-y-2">
+      {signals.map((s) => {
+        const Icon = TYPE_ICON[s.signalType] ?? Briefcase;
+        const desc = cleanSignalText(s.description);
+        return (
+          <li
+            key={s.id}
+            className="flex items-start gap-3 rounded-lg border border-border bg-surface px-3 py-2.5"
+          >
+            <Icon className="h-3.5 w-3.5 text-text-muted mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <a
+                href={s.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-medium text-text-primary hover:text-primary inline-flex items-start gap-1"
+              >
+                <span className="flex-1">{s.title}</span>
+                <ExternalLink className="h-2.5 w-2.5 text-text-muted mt-1.5 flex-shrink-0" />
+              </a>
+              {desc && (
+                <p className="text-xs text-text-secondary mt-0.5 leading-relaxed line-clamp-2">
+                  {desc}
+                </p>
+              )}
+              <p className="text-[10px] text-text-muted mt-1">
+                {s.sourceLabel} · {s.postedAgo}
+              </p>
+            </div>
+            <div className="flex flex-col items-end flex-shrink-0">
+              <span className="text-sm font-bold tabular-nums text-text-primary leading-none">
+                {s.signalStrength}
+              </span>
+              <span className="text-[8px] uppercase tracking-wider text-text-muted">relevance</span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

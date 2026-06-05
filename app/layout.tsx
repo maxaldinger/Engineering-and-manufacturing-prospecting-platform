@@ -13,10 +13,10 @@ export const metadata: Metadata = {
   description: BRAND.description,
 };
 
-// Apply the saved theme (or the OS preference) before first paint so dark mode
-// never flashes. Static literal, runs ahead of hydration; suppressHydrationWarning
-// covers the class it sets on <html>.
-const THEME_INIT = `(function(){try{var t=localStorage.getItem('pp-theme');if(t==='dark'||(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}})();`;
+// Light is the default. Dark applies only when the rep has explicitly chosen it
+// (saved preference), never from the OS setting. Runs before first paint so the
+// chosen theme never flashes; suppressHydrationWarning covers the class on <html>.
+const THEME_INIT = `(function(){try{if(localStorage.getItem('pp-theme')==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
