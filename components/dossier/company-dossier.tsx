@@ -4,12 +4,7 @@ import * as React from "react";
 import {
   Sparkles,
   Linkedin,
-  Copy,
-  Check,
   Loader2,
-  AlertTriangle,
-  Plus,
-  Target,
   ExternalLink,
   Briefcase,
   Landmark,
@@ -21,20 +16,20 @@ import {
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useCompanyContext } from "@/components/providers/company-context";
-import { useToast } from "@/components/ui/toast";
 import { cn, signalTypeColor } from "@/lib/utils";
+import { linkedinSearchUrl } from "@/lib/linkedin-targets";
 import {
-  targetsForIndustry,
-  linkedinSearchUrl,
-  type TargetContact,
-} from "@/lib/linkedin-targets";
-import { PRODUCT_TYPE_BY_ID } from "@/lib/catalog";
+  buildStarvedPrompt,
+  parseRawProse,
+  groundProse,
+} from "@/lib/brief/generate";
 import {
-  type AiBrief,
-  SYSTEM_PROMPT,
-  buildSignalDigest,
-  parseBrief,
-} from "./brief";
+  assembleBrief,
+  templateKeyContacts,
+  type BriefProse,
+  type KeyContact,
+} from "@/lib/brief/assemble";
+import { GroundedBriefView, FieldText, fieldValue } from "./grounded-brief-view";
 import type { CompanyGroup, Urgency } from "@/lib/signal-grouping";
 import type { Signal } from "@/types/signal";
 import type { Contact } from "@/types/contact";
@@ -43,10 +38,10 @@ interface CompanyDossierProps {
   group: CompanyGroup;
 }
 
-// Session-scoped cache so re-expanding the same row reuses the brief
+// Session-scoped cache so re-expanding the same row reuses the grounded prose
 // instead of re-hitting the model. Keyed by company + state + signal
 // fingerprint so adding new signals invalidates.
-const briefCache = new Map<string, AiBrief>();
+const proseCache = new Map<string, BriefProse>();
 
 function cacheKey(group: CompanyGroup): string {
   const ids = group.signals
@@ -78,15 +73,21 @@ const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
 export function CompanyDossier({ group }: CompanyDossierProps) {
   const router = useRouter();
   const { setActive } = useCompanyContext();
-  const { toast } = useToast();
 
   const [tab, setTab] = React.useState<"intel" | "timeline">("intel");
-  const [brief, setBrief] = React.useState<AiBrief | null>(null);
+  const [prose, setProse] = React.useState<BriefProse | null>(null);
   const [briefStreaming, setBriefStreaming] = React.useState(false);
   const [briefError, setBriefError] = React.useState<string | null>(null);
-  const [outreachCopied, setOutreachCopied] = React.useState(false);
+  // Stable per mount: report metadata only, not a prospect claim.
+  const [generatedAt] = React.useState(() => new Date().toISOString());
 
-  const targets = targetsForIndustry(group.industry);
+  // Tagged industry role templates for the no-ZoomInfo contact fallback (and the
+  // "find more on LinkedIn" supplement). Same provenance tags as the brief, so
+  // the fallback is never a bare untagged assertion.
+  const contactTemplates = React.useMemo<KeyContact[]>(
+    () => templateKeyContacts(group.industry),
+    [group.industry]
+  );
 
   // Real decision-maker contacts attached by ZoomInfo (deduped by name across
   // all of the company's signals). When present, these replace the generic
@@ -107,18 +108,20 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
 
   const generateBrief = React.useCallback(async () => {
     const key = cacheKey(group);
-    const cached = briefCache.get(key);
+    const cached = proseCache.get(key);
     if (cached) {
-      setBrief(cached);
+      setProse(cached);
       setBriefError(null);
       setBriefStreaming(false);
       return;
     }
     setBriefError(null);
     setBriefStreaming(true);
-    setBrief(null);
+    setProse(null);
     try {
-      const digest = buildSignalDigest(group);
+      // Starved prompt: only sourced facts reach the model (the digest withholds
+      // draft-competitor specifics); the system prompt is summary-only.
+      const { system, user } = buildStarvedPrompt(group);
       const res = await fetch("/api/assist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -126,8 +129,8 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
           tab: "Ask Anything",
           tone: "Direct",
           methodology: "MEDDPICC",
-          systemPromptOverride: SYSTEM_PROMPT,
-          messages: [{ role: "user", content: digest }],
+          systemPromptOverride: system,
+          messages: [{ role: "user", content: user }],
         }),
       });
       if (!res.ok || !res.body) {
@@ -142,12 +145,15 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
         if (done) break;
         buf += decoder.decode(value, { stream: true });
       }
-      const parsed = parseBrief(buf);
-      if (!parsed) {
+      const raw = parseRawProse(buf);
+      if (!raw) {
         throw new Error("Could not parse model response. Try regenerating.");
       }
-      briefCache.set(key, parsed);
-      setBrief(parsed);
+      // Post-parse validation: strips any unsourced number and flags fabricated
+      // stat / named-customer shapes before the prose reaches the brief.
+      const { prose: grounded } = groundProse(raw, group);
+      proseCache.set(key, grounded);
+      setProse(grounded);
     } catch (e: any) {
       const msg = e?.message ?? "Brief generation failed";
       setBriefError(
@@ -164,6 +170,22 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
     void generateBrief();
   }, [generateBrief]);
 
+  // The grounded brief. The deterministic floor (header, single computed fit,
+  // displacement, signals) renders immediately; LLM prose fills the narrative
+  // slots when it arrives and shows as visible pending gaps until then.
+  // routeCount is 1: the dossier is a single-route pull, so its fit is labeled
+  // single-route and never reads as the company's definitive cross-route score.
+  const brief = React.useMemo(
+    () =>
+      assembleBrief({
+        group,
+        routeCount: 1,
+        generatedAt,
+        prose: prose ?? undefined,
+      }),
+    [group, prose, generatedAt]
+  );
+
   const sendToAssist = () => {
     setActive({
       company: group.company,
@@ -174,62 +196,9 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
     router.push("/sales-assist");
   };
 
-  const copyOutreach = async () => {
-    if (!brief) return;
-    const text = `Subject: ${brief.outreachSubject}\n\n${brief.outreachBody}`;
-    try {
-      await navigator.clipboard.writeText(text);
-      setOutreachCopied(true);
-      setTimeout(() => setOutreachCopied(false), 1500);
-    } catch (err) {
-      console.warn(
-        "dossier: clipboard write failed; the outreach copy was not copied.",
-        err
-      );
-    }
-  };
-
-  const computedScore =
-    brief?.score ??
-    Math.round(
-      group.signals.reduce((s, x) => s + x.signalStrength, 0) /
-        Math.max(1, group.signals.length)
-    );
-  const computedLabel =
-    brief?.scoreLabel ||
-    (computedScore >= 75
-      ? "PRIME TARGET"
-      : computedScore >= 50
-      ? "WARM TARGET"
-      : "COLD TARGET");
-
-  const govContracts = group.signals.filter((s) => s.signalType === "Gov Contract");
-  const jobs = group.signals.filter((s) => s.signalType === "Job Posting");
-  const news = group.signals.filter((s) => s.signalType === "News");
-  const techAdoption = group.signals.filter((s) => s.signalType === "Tech Adoption");
-
   return (
     <div className="space-y-5">
-      {/* 1. Recommended Fit callout */}
-      <div className="rounded-lg border-l-4 border-primary border-y border-r border-border bg-primary-subtle/30 px-4 py-3">
-        <p className="text-[10px] uppercase tracking-widest font-semibold text-primary mb-1">
-          Recommended Fit
-        </p>
-        {briefStreaming && !brief ? (
-          <p className="text-sm text-text-muted inline-flex items-center gap-2">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Compiling intel from {group.signals.length} live signal{group.signals.length === 1 ? "" : "s"}...
-          </p>
-        ) : brief?.whyFit ? (
-          <p className="text-sm text-text-primary leading-relaxed">{brief.whyFit}</p>
-        ) : briefError ? (
-          <p className="text-sm text-red-700">{briefError}</p>
-        ) : (
-          <p className="text-sm text-text-muted">Generating...</p>
-        )}
-      </div>
-
-      {/* 2. Tab bar */}
+      {/* Tab bar */}
       <div className="flex items-center gap-1 border-b border-border">
         <TabButton active={tab === "intel"} onClick={() => setTab("intel")}>
           Intel
@@ -243,108 +212,24 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
         <TimelineTab signals={group.signals} />
       ) : (
         <>
-          {/* 3. Company header */}
-          <div className="rounded-xl border border-border bg-surface shadow-sm p-5">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="min-w-0 flex-1">
-                <h2 className="text-2xl font-bold text-navy tracking-tight">
-                  {group.company}
-                </h2>
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  <span className="text-sm text-text-secondary">
-                    {group.city ? `${group.city}, ${group.state}` : group.state}
-                  </span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border border-primary/30 bg-primary-subtle text-primary">
-                    {group.industry}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {group.productTypes.length > 0 ? (
-                    group.productTypes.map((id) => (
-                      <span
-                        key={id}
-                        className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border border-navy/20 bg-navy/5 text-navy"
-                      >
-                        {PRODUCT_TYPE_BY_ID[id]?.label ?? id}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border border-dashed border-amber-300 bg-amber-50 text-amber-700">
-                      Unclassified
-                    </span>
-                  )}
-                </div>
-                {group.detectedSoftware.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2.5">
-                    {group.detectedSoftware.map((sw) => (
-                      <span
-                        key={sw}
-                        className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border border-primary/30 bg-primary-subtle text-primary"
-                      >
-                        {sw}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col items-end flex-shrink-0">
-                <span className="text-[10px] uppercase tracking-widest text-text-muted">
-                  {computedLabel}
-                </span>
-                <span
-                  className={cn(
-                    "text-4xl font-bold tabular-nums leading-none mt-0.5",
-                    computedScore >= 75
-                      ? "text-emerald-600"
-                      : computedScore >= 50
-                      ? "text-primary"
-                      : "text-amber-600"
-                  )}
-                >
-                  {computedScore}
-                  <span className="text-base text-text-muted font-normal">/100</span>
-                </span>
-                <div className="mt-2 w-32 h-1 rounded-full bg-surface-2 overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full",
-                      computedScore >= 75
-                        ? "bg-emerald-500"
-                        : computedScore >= 50
-                        ? "bg-primary"
-                        : "bg-amber-500"
-                    )}
-                    style={{ width: `${Math.min(100, Math.max(0, computedScore))}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 4. Overview */}
-          {brief?.overview && (
-            <p className="text-sm text-text-primary leading-relaxed px-1">
-              {brief.overview}
+          {/* AI generation status: the grounded floor renders immediately; the
+              narrative slots fill in or show as visible pending gaps. */}
+          {briefStreaming && (
+            <p className="text-xs text-text-muted inline-flex items-center gap-2 px-1">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Compiling AI sections from {group.signals.length} live signal
+              {group.signals.length === 1 ? "" : "s"}...
             </p>
           )}
+          {briefError && <p className="text-xs text-amber-700 px-1">{briefError}</p>}
 
-          {/* 5. Two-column callouts */}
-          {brief && (
-            <div className="grid md:grid-cols-2 gap-4">
-              <CalloutBox
-                title="Portfolio Fit"
-                tone="primary"
-                content={brief.portfolioFit}
-              />
-              <CalloutBox
-                title="Manufacturing Challenge"
-                tone="navy"
-                content={brief.manufacturingChallenge}
-              />
-            </div>
-          )}
+          {/* Grounded brief: header (single computed fit), why-reseller, exec
+              summary, pain points, talking points, outreach (+ Copy), and
+              competitive displacement. Contacts and signals are owned by the
+              dossier below, so the brief's slimmer versions are suppressed. */}
+          <GroundedBriefView brief={brief} hideContacts hideRelatedSignals />
 
-          {/* 6. SIGNALS */}
+          {/* SIGNALS */}
           <Section title="Signals">
             <ul className="space-y-2">
               {group.signals.map((s) => {
@@ -400,7 +285,9 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
             </ul>
           </Section>
 
-          {/* 7. CONTACTS */}
+          {/* CONTACTS: real ZoomInfo people render as detected cards; the
+              no-ZoomInfo fallback renders tagged role templates (see
+              TemplateContactGrid), never a bare assertion. */}
           <Section
             title={realContacts.length > 0 ? "Contacts" : "Target Contacts"}
             action={
@@ -423,82 +310,21 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
                   <p className="text-[10px] uppercase tracking-widest font-semibold text-text-muted mb-2 px-1">
                     Find more on LinkedIn
                   </p>
-                  <LinkedInTargetGrid targets={targets} company={group.company} />
+                  <TemplateContactGrid contacts={contactTemplates} company={group.company} />
                 </div>
               </div>
             ) : (
-              <LinkedInTargetGrid targets={targets} company={group.company} />
+              <TemplateContactGrid contacts={contactTemplates} company={group.company} />
             )}
           </Section>
 
-          {/* 8. OUTREACH COPY */}
-          {brief && (
-            <Section
-              title="Outreach Copy"
-              action={
-                <button
-                  type="button"
-                  onClick={copyOutreach}
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary-hover"
-                >
-                  {outreachCopied ? (
-                    <>
-                      <Check className="h-3 w-3" /> Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3 w-3" /> Copy
-                    </>
-                  )}
-                </button>
-              }
-            >
-              <p className="text-sm text-text-primary mb-2">
-                <span className="text-text-muted">Subject: </span>
-                <span className="font-semibold">{brief.outreachSubject}</span>
-              </p>
-              <p className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
-                {brief.outreachBody}
-              </p>
-            </Section>
-          )}
-
-          {/* 9. TALKING POINTS */}
-          {brief && brief.talkingPoints.length > 0 && (
-            <Section title="Talking Points">
-              <ul className="space-y-2">
-                {brief.talkingPoints.map((p, i) => (
-                  <li
-                    key={i}
-                    className="flex items-start gap-3 text-sm text-text-primary leading-relaxed"
-                  >
-                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary flex-shrink-0" />
-                    <span>{p}</span>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          {/* 10. Action buttons */}
+          {/* Action: Sales Assist only. Add to Territory and Mark Pursuing
+              removed: both were toast-only stubs with no backend, HRS's to
+              build. The Sales Assist entry point is preserved verbatim. */}
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <Button onClick={sendToAssist} className="sm:flex-1">
               <Sparkles className="h-4 w-4" />
               Open in Sales Assist
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => toast(`${group.company} added to your territory`)}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add to Territory
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => toast(`${group.company} marked as Pursuing`)}
-            >
-              <Target className="h-3.5 w-3.5" />
-              Mark Pursuing
             </Button>
           </div>
         </>
@@ -529,37 +355,6 @@ function TabButton({
     >
       {children}
     </button>
-  );
-}
-
-function CalloutBox({
-  title,
-  tone,
-  content,
-}: {
-  title: string;
-  tone: "primary" | "navy";
-  content: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-lg border p-4",
-        tone === "primary"
-          ? "border-primary/40 bg-primary-subtle/40"
-          : "border-navy/30 bg-navy/5"
-      )}
-    >
-      <p
-        className={cn(
-          "text-[10px] uppercase tracking-widest font-semibold mb-1.5",
-          tone === "primary" ? "text-primary" : "text-navy"
-        )}
-      >
-        {title}
-      </p>
-      <p className="text-sm text-text-primary leading-relaxed">{content}</p>
-    </div>
   );
 }
 
@@ -639,37 +434,48 @@ function ContactCard({ contact }: { contact: Contact }) {
   );
 }
 
-function LinkedInTargetGrid({
-  targets,
+// Industry role templates (the no-ZoomInfo fallback and the "find more on
+// LinkedIn" supplement) rendered WITH their provenance tags: role/value-prop are
+// curated templates, tier is an inferred ordering. This is the contacts
+// amendment: the template fallback must never read as a bare factual assertion.
+// The per-role LinkedIn search link is preserved verbatim. valueProp and tier
+// are curated/inferred (never detected/computed), so their badges carry no inner
+// anchor and nesting inside this card's link stays valid.
+function TemplateContactGrid({
+  contacts,
   company,
 }: {
-  targets: TargetContact[];
+  contacts: KeyContact[];
   company: string;
 }) {
   return (
     <div className="grid md:grid-cols-2 gap-3">
-      {targets.map((t) => (
-        <a
-          key={t.role}
-          href={linkedinSearchUrl(t.role, company)}
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-lg border border-border bg-surface p-4 hover:border-primary/50 hover:bg-primary-subtle transition-colors block group"
-        >
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <h3 className="text-sm font-semibold text-text-primary group-hover:text-primary">
-              {t.role}
-            </h3>
-            <Linkedin className="h-3.5 w-3.5 text-text-muted group-hover:text-primary flex-shrink-0" />
-          </div>
-          <p className="text-xs text-text-muted mb-2">{t.department}</p>
-          <p className="text-xs text-text-secondary leading-relaxed">{t.why}</p>
-          <p className="text-[11px] text-primary mt-2 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            Find on LinkedIn
-            <ExternalLink className="h-2.5 w-2.5" />
-          </p>
-        </a>
-      ))}
+      {contacts.map((c, i) => {
+        const role = fieldValue(c.role);
+        return (
+          <a
+            key={`${role}-${i}`}
+            href={linkedinSearchUrl(role, company)}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-border bg-surface p-4 hover:border-primary/50 hover:bg-primary-subtle transition-colors block group"
+          >
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <h3 className="text-sm font-semibold text-text-primary group-hover:text-primary">
+                {role}
+              </h3>
+              <Linkedin className="h-3.5 w-3.5 text-text-muted group-hover:text-primary flex-shrink-0" />
+            </div>
+            <p className="text-xs text-text-muted mb-1">{fieldValue(c.dept)}</p>
+            <p className="text-xs"><FieldText f={c.valueProp} /></p>
+            <p className="mt-1 text-[10px]"><FieldText f={c.tier} /></p>
+            <p className="text-[11px] text-primary mt-2 inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              Find on LinkedIn
+              <ExternalLink className="h-2.5 w-2.5" />
+            </p>
+          </a>
+        );
+      })}
     </div>
   );
 }

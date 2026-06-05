@@ -22,7 +22,7 @@ const PROV_STYLE: Record<AnyField["provenance"], string> = {
   curated: "bg-violet-50 text-violet-700 border-violet-200",
 };
 
-function ProvBadge({ f }: { f: AnyField }) {
+export function ProvBadge({ f }: { f: AnyField }) {
   const gap = f.provenance === "curated" && isCuratedGap(f);
   const label = gap ? "pending" : f.provenance;
   const title =
@@ -57,13 +57,13 @@ function ProvBadge({ f }: { f: AnyField }) {
   );
 }
 
-function fieldValue(f: AnyField): string {
+export function fieldValue(f: AnyField): string {
   if (f.provenance === "curated" && isCuratedGap(f)) return f.pending;
   const v = "value" in f ? f.value : "";
   return Array.isArray(v) ? v.join("; ") : String(v);
 }
 
-function FieldText({ f, className }: { f: AnyField; className?: string }) {
+export function FieldText({ f, className }: { f: AnyField; className?: string }) {
   const gap = f.provenance === "curated" && isCuratedGap(f);
   const prefix = f.provenance === "inferred" ? "hypothesis: " : "";
   return (
@@ -121,8 +121,23 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function GroundedBriefView({ brief }: { brief: GroundedBrief }) {
+export function GroundedBriefView({
+  brief,
+  hideContacts = false,
+  hideRelatedSignals = false,
+}: {
+  brief: GroundedBrief;
+  // The dossier owns the richer Contacts (ZoomInfo cards) and Signals sections,
+  // so it suppresses the brief's slimmer versions to avoid double-rendering.
+  hideContacts?: boolean;
+  hideRelatedSignals?: boolean;
+}) {
   const h = brief.header;
+  // Fit is route-scoped: a single-route pull (the dossier) and the cross-route
+  // portfolio union score the same company differently, so the score is labeled
+  // with its route basis and never reads as one definitive number.
+  const routeCount = h.fitScore.basis.inputs.routeCount ?? 1;
+  const fitScope = routeCount <= 1 ? "single-route fit" : `${routeCount}-route fit`;
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -172,6 +187,9 @@ export function GroundedBriefView({ brief }: { brief: GroundedBrief }) {
             >
               {h.fitScore.value}
               <span className="text-base text-text-muted font-normal">/100</span>
+            </span>
+            <span className="mt-0.5 text-[9px] uppercase tracking-wider text-text-muted">
+              {fitScope}
             </span>
             <span className="mt-1"><ProvBadge f={h.fitScore} /></span>
           </div>
@@ -259,37 +277,41 @@ export function GroundedBriefView({ brief }: { brief: GroundedBrief }) {
         </Section>
       )}
 
-      <Section title={brief.keyContacts[0]?.named ? "Key Contacts (ZoomInfo)" : "Target Contacts (role templates)"}>
-        <div className="grid md:grid-cols-2 gap-3 px-1">
-          {brief.keyContacts.map((c, i) => (
-            <div key={i} className="rounded-lg border border-border bg-surface p-3">
-              <p className="text-sm font-semibold text-text-primary">{fieldValue(c.role)}</p>
-              <p className="mt-1 text-xs"><FieldText f={c.valueProp} /></p>
-              <p className="mt-1 text-[10px]"><FieldText f={c.tier} /></p>
-            </div>
-          ))}
-        </div>
-      </Section>
+      {!hideContacts && (
+        <Section title={brief.keyContacts[0]?.named ? "Key Contacts (ZoomInfo)" : "Target Contacts (role templates)"}>
+          <div className="grid md:grid-cols-2 gap-3 px-1">
+            {brief.keyContacts.map((c, i) => (
+              <div key={i} className="rounded-lg border border-border bg-surface p-3">
+                <p className="text-sm font-semibold text-text-primary">{fieldValue(c.role)}</p>
+                <p className="mt-1 text-xs"><FieldText f={c.valueProp} /></p>
+                <p className="mt-1 text-[10px]"><FieldText f={c.tier} /></p>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
-      <Section title="Related Signals">
-        <ul className="space-y-2 px-1">
-          {brief.relatedSignals.map((r, i) => (
-            <li key={i} className="flex items-start justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2">
-              <a
-                href={r.headline.sourceRef[0]?.url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-text-primary hover:text-primary flex-1"
-              >
-                {fieldValue(r.headline)}
-              </a>
-              <span className="text-[10px] tabular-nums text-text-muted flex-shrink-0">
-                {fieldValue(r.relevance)} <ProvBadge f={r.relevance} />
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Section>
+      {!hideRelatedSignals && (
+        <Section title="Related Signals">
+          <ul className="space-y-2 px-1">
+            {brief.relatedSignals.map((r, i) => (
+              <li key={i} className="flex items-start justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2">
+                <a
+                  href={r.headline.sourceRef[0]?.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-text-primary hover:text-primary flex-1"
+                >
+                  {fieldValue(r.headline)}
+                </a>
+                <span className="text-[10px] tabular-nums text-text-muted flex-shrink-0">
+                  {fieldValue(r.relevance)} <ProvBadge f={r.relevance} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
     </div>
   );
 }

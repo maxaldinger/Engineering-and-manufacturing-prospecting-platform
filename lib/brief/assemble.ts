@@ -213,7 +213,15 @@ function buildKeyContacts(group: CompanyGroup): KeyContact[] {
   if (realContacts.length > 0) return realContacts;
 
   // ZoomInfo-absent floor: industry role TEMPLATES, no names, no fabrication.
-  return targetsForIndustry(group.industry).map((t, i) => ({
+  return templateKeyContacts(group.industry);
+}
+
+// Tagged industry role templates (no names): role/dept/value-prop are CURATED
+// templates, tier is an INFERRED ordering. Exported so the dossier's no-ZoomInfo
+// contact fallback renders the SAME provenance tags as the brief, never a bare
+// untagged assertion.
+export function templateKeyContacts(industry: string): KeyContact[] {
+  return targetsForIndustry(industry).map((t, i) => ({
     role: curated(t.role, "industry role template"),
     dept: curated(t.department, "industry role template"),
     valueProp: curated(t.why, "industry role template"),
