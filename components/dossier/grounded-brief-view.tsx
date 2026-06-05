@@ -1,7 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { ExternalLink, Copy, Check, ArrowRight } from "lucide-react";
+import {
+  ExternalLink,
+  Copy,
+  Check,
+  ArrowRight,
+  Sparkles,
+  FileText,
+  AlertTriangle,
+  HelpCircle,
+  Swords,
+  Users,
+  Activity,
+  Mail,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   isCuratedGap,
@@ -18,20 +31,25 @@ import type {
 import { severityBand, type SeverityBand } from "@/lib/brief/severity";
 import type { Motion } from "@/lib/brief/motion";
 
-// Provenance is shown inline, never hidden, but quietly: one consistent badge
-// style across the brief (DETECTED / COMPUTED / INFERRED / PENDING), color-coded
-// and subtle. The badge alone carries provenance, so prose reads clean with no
-// "hypothesis:" prefix.
+// One consistent, dark-aware provenance badge across the brief (DETECTED /
+// COMPUTED / INFERRED / PENDING). The badge alone carries provenance, so prose
+// reads clean with no "hypothesis:" prefix.
 
 type BadgeTone = "detected" | "computed" | "inferred" | "pending" | "fact" | "implied";
 
 const BADGE_TONE: Record<BadgeTone, string> = {
-  detected: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  fact: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  computed: "border-blue-200 bg-blue-50 text-blue-700",
-  inferred: "border-amber-200 bg-amber-50 text-amber-700",
-  implied: "border-amber-200 bg-amber-50 text-amber-700",
-  pending: "border-amber-300 border-dashed bg-amber-50/60 text-amber-700",
+  detected:
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+  fact:
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+  computed:
+    "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
+  inferred:
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+  implied:
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+  pending:
+    "border-dashed border-amber-300 bg-amber-50/60 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300/90",
 };
 
 function Badge({
@@ -93,8 +111,7 @@ export function fieldValue(f: AnyField): string {
   return Array.isArray(v) ? v.join("; ") : String(v);
 }
 
-// Inline prose plus its provenance badge. No text prefix: the badge alone marks
-// it inferred. A curated gap reads as a muted italic line with the PENDING badge.
+// Inline prose plus its provenance badge. No text prefix: the badge marks it.
 export function FieldText({ f, className }: { f: AnyField; className?: string }) {
   const gap = f.provenance === "curated" && isCuratedGap(f);
   return (
@@ -105,12 +122,11 @@ export function FieldText({ f, className }: { f: AnyField; className?: string })
   );
 }
 
-// A curated battlecard slot that has no real library yet: one subtle dashed chip,
-// never a bold repeated line. A real curated value renders as normal prose.
+// A curated battlecard slot with no real library yet: one subtle dashed chip.
 function PendingOrCurated({ f, label }: { f: CuratedField; label?: string }) {
   if (f.provenance === "curated" && isCuratedGap(f)) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] border border-dashed border-amber-300 bg-amber-50/50 text-[10px] italic text-amber-700">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] border border-dashed border-amber-300 bg-amber-50/50 text-[10px] italic text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300/90">
         {label ? `${label}: ` : ""}
         {f.pending}
       </span>
@@ -120,26 +136,30 @@ function PendingOrCurated({ f, label }: { f: CuratedField; label?: string }) {
 }
 
 const MOTION_BADGE: Record<Motion, string> = {
-  upsell: "border-emerald-300 bg-emerald-50 text-emerald-700",
-  displacement: "border-red-300 bg-red-50 text-red-700",
-  mixed: "border-amber-300 bg-amber-50 text-amber-800",
+  upsell:
+    "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300",
+  displacement:
+    "border-red-300 bg-red-50 text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300",
+  mixed:
+    "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300",
   none: "border-border bg-surface-2 text-text-muted",
 };
 
 const SEVERITY_STYLE: Record<SeverityBand, string> = {
-  high: "border-red-200 bg-red-50 text-red-700",
-  medium: "border-amber-200 bg-amber-50 text-amber-700",
-  low: "border-slate-200 bg-slate-50 text-slate-600",
+  high: "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
+  medium:
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+  low: "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-300",
 };
 
 const SEVERITY_BORDER: Record<SeverityBand, string> = {
-  high: "border-l-red-400",
-  medium: "border-l-amber-400",
-  low: "border-l-slate-300",
+  high: "border-l-red-400 dark:border-l-red-500",
+  medium: "border-l-amber-400 dark:border-l-amber-500",
+  low: "border-l-slate-300 dark:border-l-slate-600",
 };
 
 // Color-coded severity chip. The number is COMPUTED and recomputable; the chip
-// shows the band over it with the basis math on hover, so the figure stays honest.
+// shows the band over it with the basis math on hover.
 function SeverityChip({ f }: { f: ComputedField }) {
   const band = severityBand(f.value);
   return (
@@ -170,7 +190,9 @@ function DisciplineTag({ d }: { d: DisciplineField }) {
       title={d.provenance === "inferred" ? d.basis : "directly detected"}
       className={cn(
         "inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] border text-[10px] font-semibold uppercase tracking-wide",
-        fact ? "border-navy/20 bg-navy/5 text-navy" : "border-amber-200 bg-amber-50 text-amber-800"
+        fact
+          ? "border-primary/25 bg-primary/10 text-primary"
+          : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
       )}
     >
       {disciplineLabel(d)}
@@ -179,30 +201,77 @@ function DisciplineTag({ d }: { d: DisciplineField }) {
   );
 }
 
+// --- Section numbering (shared so the dossier's trailing sections continue the
+// count without gaps). Both this view and the dossier derive numbers from the
+// same present-section list. ---
+
+const SECTION_ORDER = [
+  "why",
+  "exec",
+  "pain",
+  "talking",
+  "displacement",
+  "contacts",
+  "related",
+  "outreach",
+] as const;
+export type SectionKey = (typeof SECTION_ORDER)[number];
+
+function presentSections(brief: GroundedBrief): SectionKey[] {
+  return SECTION_ORDER.filter((k) => {
+    if (k === "pain") return brief.painPoints.length > 0;
+    if (k === "talking") return brief.talkingPoints.length > 0;
+    if (k === "displacement") return brief.displacement.length > 0;
+    return true;
+  });
+}
+
+export function sectionNumber(brief: GroundedBrief, key: SectionKey): number {
+  return presentSections(brief).indexOf(key) + 1;
+}
+
+type Accent = "primary" | "amber";
+const ACCENT_TEXT: Record<Accent, string> = {
+  primary: "text-primary",
+  amber: "text-amber-500 dark:text-amber-400",
+};
+
 export function Section({
+  num,
+  icon: Icon,
   title,
+  accent = "primary",
   action,
   children,
 }: {
+  num?: number;
+  icon?: React.ComponentType<{ className?: string }>;
   title: string;
+  accent?: Accent;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section>
-      <div className="mb-2.5 flex items-center justify-between gap-2 px-1">
-        <h3 className="text-[10px] uppercase tracking-[0.16em] font-semibold text-text-secondary">
+      <div className="flex items-center gap-2.5">
+        {num != null && (
+          <span className="font-mono text-[11px] tabular-nums text-text-muted">
+            {String(num).padStart(2, "0")}.
+          </span>
+        )}
+        {Icon && <Icon className={cn("h-4 w-4 flex-shrink-0", ACCENT_TEXT[accent])} />}
+        <h3 className={cn("text-xs font-bold uppercase tracking-[0.14em]", ACCENT_TEXT[accent])}>
           {title}
         </h3>
-        {action}
+        {action && <span className="ml-auto">{action}</span>}
       </div>
+      <div className="mt-2.5 mb-3.5 h-px bg-border" />
       {children}
     </section>
   );
 }
 
-// Copy-to-clipboard for the grounded outreach draft. The text is already validated
-// prose (no unsourced numbers), so the clipboard gets the same grounded copy.
+// Copy-to-clipboard for grounded outreach. The text is already validated prose.
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = React.useState(false);
   return (
@@ -223,15 +292,11 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-// The grounded cold-email draft with its Copy control. Exported so the dossier can
-// place it last, after its own Contacts and Related Signals sections.
+// The grounded cold-email draft with its Copy control. Exported so the dossier
+// can place it in the section order.
 export function OutreachCard({ outreach }: { outreach: GroundedBrief["outreach"] }) {
   if (!("subject" in outreach)) {
-    return (
-      <div className="px-1">
-        <PendingOrCurated f={outreach} />
-      </div>
-    );
+    return <PendingOrCurated f={outreach} />;
   }
   const draft = outreach as OutreachDraft;
   const copyText = `Subject: ${fieldValue(draft.subject)}\n\n${fieldValue(draft.body)}`;
@@ -259,23 +324,18 @@ export function GroundedBriefView({
   hideOutreach = false,
 }: {
   brief: GroundedBrief;
-  // The dossier owns the richer Contacts (ZoomInfo cards), Related Signals (with
-  // descriptions), and the trailing Outreach so it can place them in order, so it
-  // suppresses the brief's own versions to avoid double-rendering.
   hideContacts?: boolean;
   hideRelatedSignals?: boolean;
   hideOutreach?: boolean;
 }) {
   const h = brief.header;
-  // Fit is route-scoped: a single-route pull (the dossier) and the cross-route
-  // portfolio union score the same company differently, so the score is labeled
-  // with its route basis and never reads as one definitive number.
   const routeCount = h.fitScore.basis.inputs.routeCount ?? 1;
   const fitScope = routeCount <= 1 ? "single-route fit" : `${routeCount}-route fit`;
+  const num = (k: SectionKey) => sectionNumber(brief, k);
 
   return (
-    <div className="space-y-6">
-      {/* 1. Header */}
+    <div className="space-y-7">
+      {/* Header card */}
       <div className="rounded-xl border border-border bg-surface shadow-sm p-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0 flex-1">
@@ -318,29 +378,26 @@ export function GroundedBriefView({
         </div>
       </div>
 
-      {/* 2. Why reseller */}
-      <Section title={`Why ${brief.reseller.name}`}>
-        <p className="px-1 text-sm leading-relaxed text-text-primary">
+      <Section num={num("why")} icon={Sparkles} title={`Why ${brief.reseller.name}`}>
+        <p className="text-sm leading-relaxed text-text-primary">
           <FieldText f={brief.whyReseller} />
         </p>
       </Section>
 
-      {/* 3. Executive summary */}
-      <Section title="Executive Summary">
-        <p className="px-1 text-sm leading-relaxed text-text-primary">
+      <Section num={num("exec")} icon={FileText} title="Executive Summary">
+        <p className="text-sm leading-relaxed text-text-primary">
           <FieldText f={brief.executiveSummary} />
         </p>
       </Section>
 
-      {/* 4. Pain points, rows colored by computed severity */}
       {brief.painPoints.length > 0 && (
-        <Section title="Likely Pain Points">
-          <ul className="space-y-2 px-1">
+        <Section num={num("pain")} icon={AlertTriangle} title="Likely Pain Points" accent="amber">
+          <ul className="space-y-2.5">
             {brief.painPoints.map((p, i) => (
               <li
                 key={i}
                 className={cn(
-                  "rounded-lg border border-border bg-surface p-3 border-l-[3px]",
+                  "rounded-lg border border-border bg-surface p-3.5 border-l-[3px]",
                   SEVERITY_BORDER[severityBand(p.severity.value)]
                 )}
               >
@@ -348,10 +405,10 @@ export function GroundedBriefView({
                   <SeverityChip f={p.severity} />
                   {p.discipline && <DisciplineTag d={p.discipline} />}
                 </div>
-                <p className="mt-1.5 text-sm leading-relaxed text-text-primary">
+                <p className="mt-2 text-sm leading-relaxed text-text-primary">
                   <FieldText f={p.text} />
                 </p>
-                <div className="mt-1.5">
+                <div className="mt-2">
                   <PendingOrCurated f={p.solution} label="reseller solution" />
                 </div>
               </li>
@@ -360,26 +417,25 @@ export function GroundedBriefView({
         </Section>
       )}
 
-      {/* 5. Talking points, Q&A blocks */}
       {brief.talkingPoints.length > 0 && (
-        <Section title="Suggested Talking Points">
-          <ul className="space-y-2 px-1">
+        <Section num={num("talking")} icon={HelpCircle} title="Suggested Talking Points">
+          <ul className="space-y-2.5">
             {brief.talkingPoints.map((p, i) => (
-              <li key={i} className="rounded-lg border border-border bg-surface p-3">
+              <li key={i} className="rounded-lg border border-border bg-surface p-3.5">
                 <p className="flex items-start gap-2 text-sm font-semibold text-text-primary">
-                  <span className="mt-px text-primary" aria-hidden>
-                    Q
+                  <span className="mt-px font-mono text-primary" aria-hidden>
+                    Q{i + 1}
                   </span>
                   <span>
                     <FieldText f={p.question} />
                   </span>
                 </p>
                 {fieldValue(p.answer) && (
-                  <p className="mt-1.5 pl-4 text-sm leading-relaxed text-text-secondary border-l-2 border-primary/20">
+                  <p className="mt-2 pl-6 text-sm leading-relaxed text-text-secondary">
                     <FieldText f={p.answer} />
                   </p>
                 )}
-                <div className="mt-1.5">
+                <div className="mt-2 pl-6">
                   <PendingOrCurated f={p.proof} label="proof" />
                 </div>
               </li>
@@ -388,19 +444,18 @@ export function GroundedBriefView({
         </Section>
       )}
 
-      {/* 6. Competitive displacement, per-competitor cards */}
       {brief.displacement.length > 0 && (
-        <Section title="Competitive Displacement">
-          <div className="grid gap-2 px-1 sm:grid-cols-2">
+        <Section num={num("displacement")} icon={Swords} title="Competitive Displacement">
+          <div className="grid gap-2.5 sm:grid-cols-2">
             {brief.displacement.map((d, i) => (
-              <div key={i} className="rounded-lg border border-border bg-surface p-3">
+              <div key={i} className="rounded-lg border border-border bg-surface p-3.5">
                 <p className="flex items-center gap-1.5 text-sm font-semibold flex-wrap">
                   <span className="text-text-primary">{fieldValue(d.competitor)}</span>
                   <ArrowRight className="h-3.5 w-3.5 text-text-muted" />
                   <span className="text-primary">{d.replacement}</span>
                   <ProvBadge f={d.competitor} />
                 </p>
-                <p className="mt-1.5">
+                <p className="mt-2">
                   <PendingOrCurated f={d.positioning} />
                 </p>
               </div>
@@ -409,14 +464,15 @@ export function GroundedBriefView({
         </Section>
       )}
 
-      {/* 7. Key contacts (brief's own; the dossier supplies a richer version) */}
       {!hideContacts && (
         <Section
+          num={num("contacts")}
+          icon={Users}
           title={brief.keyContacts[0]?.named ? "Key Contacts" : "Target Contacts"}
         >
-          <div className="grid gap-3 px-1 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             {brief.keyContacts.map((c, i) => (
-              <div key={i} className="rounded-lg border border-border bg-surface p-3">
+              <div key={i} className="rounded-lg border border-border bg-surface p-3.5">
                 <p className="text-sm font-semibold text-text-primary">{fieldValue(c.role)}</p>
                 <p className="mt-1 text-xs">
                   <FieldText f={c.valueProp} />
@@ -430,14 +486,13 @@ export function GroundedBriefView({
         </Section>
       )}
 
-      {/* 8. Related signals (brief's own; the dossier supplies a richer version) */}
       {!hideRelatedSignals && (
-        <Section title="Related Signals">
-          <ul className="space-y-2 px-1">
+        <Section num={num("related")} icon={Activity} title="Related Signals">
+          <ul className="space-y-2">
             {brief.relatedSignals.map((r, i) => (
               <li
                 key={i}
-                className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface px-3 py-2"
+                className="flex items-start justify-between gap-3 rounded-lg border border-border bg-surface px-3.5 py-2.5"
               >
                 <a
                   href={r.headline.sourceRef[0]?.url}
@@ -456,12 +511,9 @@ export function GroundedBriefView({
         </Section>
       )}
 
-      {/* 9. Outreach draft */}
       {!hideOutreach && (
-        <Section title="Outreach Draft">
-          <div className="px-1">
-            <OutreachCard outreach={brief.outreach} />
-          </div>
+        <Section num={num("outreach")} icon={Mail} title="Outreach Draft">
+          <OutreachCard outreach={brief.outreach} />
         </Section>
       )}
     </div>

@@ -12,6 +12,8 @@ import {
   BookMarked,
   Mail,
   Phone,
+  Users,
+  Activity,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ import {
   GroundedBriefView,
   OutreachCard,
   Section,
+  sectionNumber,
   FieldText,
   fieldValue,
 } from "./grounded-brief-view";
@@ -249,17 +252,21 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
           )}
           {briefError && <p className="text-xs text-amber-700 px-1">{briefError}</p>}
 
-          {/* Grounded brief sections 1-6: header (single computed fit),
-              why-reseller, exec summary, pain points (computed severity),
-              talking points (Q&A), competitive displacement. Key contacts,
-              related signals, and the outreach draft are owned by the dossier
-              below so they render in the reference order with richer data. */}
+          {/* The brief and the dossier-owned tail sections share one rhythm. */}
+          <div className="space-y-7">
+          {/* Grounded brief: header (single computed fit), why-reseller, exec
+              summary, pain points (computed severity), talking points (Q&A),
+              competitive displacement. Key contacts, related signals, and the
+              outreach draft are owned by the dossier below so they render in
+              the reference order with richer data. */}
           <GroundedBriefView brief={brief} hideContacts hideRelatedSignals hideOutreach />
 
           {/* 7. KEY CONTACTS: real ZoomInfo people render as detected cards; the
               no-ZoomInfo fallback renders tagged role templates, never a bare
               assertion. */}
           <Section
+            num={sectionNumber(brief, "contacts")}
+            icon={Users}
             title={realContacts.length > 0 ? "Key Contacts" : "Target Contacts"}
             action={
               realContacts.length > 0 ? (
@@ -289,10 +296,10 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
             )}
           </Section>
 
-          {/* 8. RELATED SIGNALS: the actual description sentence (label-soup
+          {/* RELATED SIGNALS: the actual description sentence (label-soup
               stripped), a clean relevance score, source and date. */}
-          <Section title="Related Signals">
-            <ul className="space-y-2 px-1">
+          <Section num={sectionNumber(brief, "related")} icon={Activity} title="Related Signals">
+            <ul className="space-y-2">
               {group.signals.map((s) => {
                 const Icon = TYPE_ICON[s.signalType] ?? Briefcase;
                 const desc = cleanSignalText(s.description);
@@ -335,12 +342,11 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
             </ul>
           </Section>
 
-          {/* 9. OUTREACH DRAFT + Copy (grounded, validated) */}
-          <Section title="Outreach Draft">
-            <div className="px-1">
-              <OutreachCard outreach={brief.outreach} />
-            </div>
+          {/* OUTREACH DRAFT + Copy (grounded, validated) */}
+          <Section num={sectionNumber(brief, "outreach")} icon={Mail} title="Outreach Draft">
+            <OutreachCard outreach={brief.outreach} />
           </Section>
+          </div>
 
           {/* Action: Sales Assist only. Add to Territory and Mark Pursuing
               removed (toast-only stubs, HRS's to build). The Sales Assist entry
