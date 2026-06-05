@@ -16,7 +16,11 @@ export interface ValidationResult {
 }
 
 // Numbers, including $amounts, percentages, x-multipliers, and magnitude suffixes.
-const NUMBER_RE = /\$?\d[\d,]*(?:\.\d+)?\s?(?:%|x|million|billion|thousand|[mkb])?/gi;
+// A single-letter magnitude suffix (m/k/b) must be ATTACHED to the digits ("14.6M",
+// "30k"); only the spelled magnitudes and %/x may follow a space. This stops the
+// suffix from swallowing the first letter of an adjacent word ("30 minutes" ->
+// "30 m", "AS9100 machine" -> "9100 m").
+const NUMBER_RE = /\$?\d[\d,]*(?:\.\d+)?(?:\s?(?:%|x|million|billion|thousand)|[mkb])?/gi;
 // Spelled-out numbers, which evade the digit regex ("sixty percent", "three-fold",
 // "two audits", "two hundred"). Same strip-and-flag path as digits.
 const WORD =
@@ -48,7 +52,7 @@ function normNum(s: string): string {
 // keep a figure the prospect actually stated while stripping anything the model
 // invents. Mirrors the brief's allowed-number extraction, for the sales builders.
 export function extractNumbers(...texts: string[]): string[] {
-  const re = /\$?\d[\d,]*(?:\.\d+)?\s?(?:%|x|million|billion|thousand|[mkb])?/gi;
+  const re = /\$?\d[\d,]*(?:\.\d+)?(?:\s?(?:%|x|million|billion|thousand)|[mkb])?/gi;
   const out = new Set<string>();
   for (const t of texts) {
     for (const m of (t ?? "").matchAll(re)) {

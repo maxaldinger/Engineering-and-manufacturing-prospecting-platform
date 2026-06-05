@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateProse } from "./validator";
+import { validateProse, extractNumbers } from "./validator";
 
 describe("post-parse validator strips and flags fabrication", () => {
   it("strips an injected fake stat with no sourced backing", () => {
@@ -53,6 +53,24 @@ describe("post-parse validator strips and flags fabrication", () => {
 
     expect(validateProse("cut it by one third").flags.some((f) => f.reason === "unsourced-number")).toBe(true);
     expect(validateProse("a one percent gain").flags.some((f) => f.reason === "unsourced-number")).toBe(true);
+  });
+
+  it("a magnitude suffix no longer swallows the next word's first letter", () => {
+    // "30 minutes": mask the number, keep "minutes" intact, not "[unverified]inutes".
+    const r = validateProse("Carve out 30 minutes this week.");
+    expect(r.flags.some((f) => f.reason === "unsourced-number")).toBe(true);
+    expect(r.clean).toContain("[unverified] minutes");
+    expect(r.clean).not.toContain("[unverified]inutes");
+    // an attached suffix still parses as one token and masks cleanly.
+    expect(validateProse("about 30k seats").clean).toContain("[unverified] seats");
+  });
+
+  it("keeps a source number that precedes an m/k/b word (AS9100 machine shop)", () => {
+    const allowed = extractNumbers("AS9100 machine shop, 5-axis work");
+    expect(allowed).toContain("9100"); // not "9100 m"
+    const r = validateProse("They are AS9100 certified for documentation.", allowed);
+    expect(r.clean).toContain("9100");
+    expect(r.flags.some((f) => f.reason === "unsourced-number")).toBe(false);
   });
 
   it("flags a named-customer claim", () => {
