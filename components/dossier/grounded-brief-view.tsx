@@ -3,12 +3,13 @@
 import * as React from "react";
 import { ExternalLink, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isCuratedGap, type AnyField } from "@/lib/brief/provenance";
+import { isCuratedGap, type AnyField, type ComputedField } from "@/lib/brief/provenance";
 import type {
   GroundedBrief,
   DisciplineField,
   ContactField,
 } from "@/lib/brief/assemble";
+import { severityBand, type SeverityBand } from "@/lib/brief/severity";
 import type { Motion } from "@/lib/brief/motion";
 
 // Provenance is shown inline, never hidden: detected links to its signal, computed
@@ -81,6 +82,31 @@ const MOTION_BADGE: Record<Motion, string> = {
   mixed: "bg-amber-50 text-amber-800 border-amber-300",
   none: "bg-surface-2 text-text-muted border-border",
 };
+
+const SEVERITY_STYLE: Record<SeverityBand, string> = {
+  high: "bg-red-50 text-red-700 border-red-200",
+  medium: "bg-amber-50 text-amber-700 border-amber-200",
+  low: "bg-slate-50 text-slate-600 border-slate-200",
+};
+
+// Color-coded severity chip. The number is COMPUTED and recomputable; the chip
+// shows the band over it with the basis math on hover, so the figure stays
+// honest (never an LLM guess).
+function SeverityChip({ f }: { f: ComputedField }) {
+  const band = severityBand(f.value);
+  return (
+    <span
+      title={`severity ${f.value}/100 · ${f.basis.fn} ${JSON.stringify(f.basis.inputs)} (cites ${f.sourceRef.length} signals)`}
+      className={cn(
+        "inline-flex flex-shrink-0 items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border",
+        SEVERITY_STYLE[band]
+      )}
+    >
+      {band}
+      <span className="text-[8px] font-medium opacity-70">computed</span>
+    </span>
+  );
+}
 
 function disciplineLabel(d: DisciplineField | ContactField): string {
   const v = "value" in d ? d.value : "";
@@ -211,8 +237,11 @@ export function GroundedBriefView({
           <ul className="space-y-2 px-1">
             {brief.painPoints.map((p, i) => (
               <li key={i} className="text-sm">
-                <FieldText f={p.text} />
-                <div className="mt-0.5 text-xs"><FieldText f={p.proof} /></div>
+                <div className="flex items-start gap-2">
+                  <SeverityChip f={p.severity} />
+                  <FieldText f={p.text} />
+                </div>
+                <div className="mt-0.5 text-xs"><FieldText f={p.solution} /></div>
               </li>
             ))}
           </ul>

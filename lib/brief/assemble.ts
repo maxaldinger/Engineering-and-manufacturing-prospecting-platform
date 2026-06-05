@@ -25,6 +25,7 @@ import {
   type SourceRef,
 } from "./provenance";
 import { computeFitScore } from "./fit-score";
+import { computeSeverity, evidenceFor } from "./severity";
 import { companyMotion, motionBasis, type Motion } from "./motion";
 
 // --- Model -----------------------------------------------------------------
@@ -59,6 +60,17 @@ export interface ProseSection {
   proof: CuratedField; // proof line / solution, gap until a real battlecard
 }
 
+// A likely pain point. text + discipline are inferred prose; severity is COMPUTED
+// from the evidence backing the point (never LLM-asserted), so it carries a number
+// honestly; solution is the curated battlecard slot, a visible gap until a real one
+// exists.
+export interface PainPoint {
+  text: InferredField;
+  discipline?: DisciplineField;
+  severity: ComputedField;
+  solution: CuratedField;
+}
+
 // Cold-email draft. Subject and body are paraphrase-only and run through the
 // same validator as every other prose field, so the Copy control hands the rep
 // grounded text, never an invented stat. Pending until the LLM prose arrives.
@@ -79,7 +91,7 @@ export interface GroundedBrief {
   disciplines: DisciplineField[];
   reseller: { name: string; short: string; supportLine: string };
   executiveSummary: InferredField | CuratedGap; // LLM prose or pending
-  painPoints: ProseSection[];
+  painPoints: PainPoint[];
   talkingPoints: ProseSection[];
   outreach: OutreachDraft | CuratedGap; // grounded cold-email draft or pending
   displacement: DisplacementEntry[];
@@ -230,6 +242,12 @@ export function templateKeyContacts(industry: string): KeyContact[] {
   }));
 }
 
+function disciplineField(discipline?: ProductTypeId): DisciplineField | undefined {
+  return discipline
+    ? inferred(PRODUCT_TYPE_BY_ID[discipline]?.label ?? discipline, "tagged discipline")
+    : undefined;
+}
+
 function proseSections(
   items: { text: string; discipline?: ProductTypeId }[] | undefined,
   group: CompanyGroup
@@ -238,10 +256,25 @@ function proseSections(
   const refs = allRefs(group);
   return items.map((p) => ({
     text: inferredFromSignals(p.text, "paraphrase of the prospect's signals", refs),
-    discipline: p.discipline
-      ? inferred(PRODUCT_TYPE_BY_ID[p.discipline]?.label ?? p.discipline, "tagged discipline")
-      : undefined,
+    discipline: disciplineField(p.discipline),
     proof: curatedGap("pending HRS battlecard"),
+  }));
+}
+
+// Pain points: inferred text, an inferred discipline tag, and a COMPUTED severity
+// over the evidence backing each point (discipline-scoped signals, falling back to
+// the whole company set). The solution slot stays a visible pending gap.
+function buildPainPoints(
+  items: { text: string; discipline?: ProductTypeId }[] | undefined,
+  group: CompanyGroup
+): PainPoint[] {
+  if (!items || items.length === 0) return [];
+  const refs = allRefs(group);
+  return items.map((p) => ({
+    text: inferredFromSignals(p.text, "paraphrase of the prospect's signals", refs),
+    discipline: disciplineField(p.discipline),
+    severity: computeSeverity(evidenceFor(group.signals, p.discipline)),
+    solution: curatedGap("pending HRS battlecard"),
   }));
 }
 
@@ -278,7 +311,7 @@ export function assembleBrief(input: AssembleInput): GroundedBrief {
     executiveSummary: prose?.executiveSummary
       ? inferredFromSignals(prose.executiveSummary, "summary of the prospect's signals", refs)
       : curatedGap("pending AI summary (set ANTHROPIC_API_KEY)"),
-    painPoints: proseSections(prose?.painPoints, group),
+    painPoints: buildPainPoints(prose?.painPoints, group),
     talkingPoints: proseSections(prose?.talkingPoints, group),
     outreach:
       prose?.outreach && (prose.outreach.subject.trim() || prose.outreach.body.trim())

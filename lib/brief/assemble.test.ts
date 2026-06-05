@@ -69,7 +69,7 @@ function collectFields(b: GroundedBrief): AnyField[] {
     ...b.disciplines,
   ];
   for (const p of b.painPoints) {
-    out.push(p.text, p.proof);
+    out.push(p.text, p.solution, p.severity);
     if (p.discipline) out.push(p.discipline);
   }
   for (const p of b.talkingPoints) out.push(p.text, p.proof);
@@ -188,6 +188,18 @@ describe("assembleBrief with prose: every prose section carries its refs", () =>
       if (brief.outreach.body.provenance === "inferred") {
         expect(brief.outreach.body.sourceRef?.length).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it("each pain point carries a COMPUTED severity that recomputes to its value", () => {
+    expect(brief.painPoints.length).toBeGreaterThan(0);
+    for (const p of brief.painPoints) {
+      expect(p.severity.provenance).toBe("computed");
+      expect(p.severity.sourceRef.length).toBeGreaterThan(0);
+      expect(recompute(p.severity)).toBe(p.severity.value);
+      // the solution slot is a visible pending gap, never invented prose
+      expect(p.solution.provenance).toBe("curated");
+      expect(isCuratedGap(p.solution)).toBe(true);
     }
   });
 });

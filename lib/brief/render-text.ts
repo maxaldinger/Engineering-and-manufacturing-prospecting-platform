@@ -60,7 +60,8 @@ export function renderBriefText(b: GroundedBrief): string {
   for (const p of b.painPoints) {
     L.push("  " + field("·", p.text));
     if (p.discipline) L.push("    " + field("discipline", p.discipline));
-    L.push("    " + field("reseller solution", p.proof));
+    L.push("    " + field("severity", p.severity));
+    L.push("    " + field("reseller solution", p.solution));
   }
   L.push("");
 
