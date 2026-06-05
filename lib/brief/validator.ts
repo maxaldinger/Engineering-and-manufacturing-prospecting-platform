@@ -25,6 +25,15 @@ const WORD_NUMBER_RE = new RegExp(
   `\\b(?:${WORD})(?:[\\s-]+(?:${WORD}))*(?:[\\s-]+(?:percent|fold|times))?\\b`,
   "gi"
 );
+// "one" is usually the English article/determiner ("one more thought", "one
+// challenge"), not a stat, so a BARE "one" is left alone. It STAYS masked inside a
+// number or stat shape: a fraction ("one third"), a unit ("one-minute"), a
+// percent/fold/times suffix or magnitude (already captured as a multi-word span by
+// WORD_NUMBER_RE), or adjacent to a number ("one 5", "$5 one"). Every other spelled
+// number is unaffected. These two test the text immediately around a bare "one".
+const ONE_STAT_AFTER =
+  /^[\s-]*(?:thirds?|half|halves|quarters?|fourths?|fifths?|sixths?|sevenths?|eighths?|ninths?|tenths?|dozen|hundred|thousand|million|billion|percent|fold|times|minutes?|hours?|seconds?|days?|weeks?|months?|years?|dollars?|cents?|points?|degrees?|miles?|inches|inch|feet|foot|pounds?|x|%|\$|\d|\[unverified\])/i;
+const ONE_STAT_BEFORE = /(?:\d|\$|%|\[unverified\])\s*$/i;
 // Claim verbs that turn a number into a proof stat.
 const CLAIM_NEAR = /(reduc|increas|faster|slower|sav|cut|boost|improv|gain|fewer|less|more|yield)/i;
 // Best-effort named-customer shapes (starve-the-prompt is the primary guard).
@@ -48,6 +57,15 @@ export function validateProse(
   // number sitting in a proof-stat shape is kept but flagged for review.
   const maskPass = (re: RegExp) => {
     clean = clean.replace(re, (m: string, offset: number) => {
+      // Spare a bare "one" determiner; keep masking "one" in a number/stat shape.
+      // (Only the spelled-number pass can produce "one"; the digit pass never does.)
+      if (m.trim().toLowerCase() === "one") {
+        const after = clean.slice(offset + m.length, offset + m.length + 16);
+        const before = clean.slice(Math.max(0, offset - 8), offset);
+        if (!ONE_STAT_AFTER.test(after) && !ONE_STAT_BEFORE.test(before)) {
+          return m; // leave the determiner in place, no flag
+        }
+      }
       const norm = normNum(m);
       if (allowed.has(norm)) {
         const ctx = clean.slice(Math.max(0, offset - 20), offset + m.length + 20);

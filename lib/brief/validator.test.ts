@@ -35,6 +35,26 @@ describe("post-parse validator strips and flags fabrication", () => {
     expect(validateProse("two hundred employees").flags.some((f) => f.reason === "unsourced-number")).toBe(true);
   });
 
+  it("spares a bare 'one' determiner but masks 'one' in a number or stat shape", () => {
+    // bare determiner survives, unflagged
+    const a = validateProse("Just one more thought before we wrap.");
+    expect(a.clean).toContain("one more thought");
+    expect(a.flags.some((f) => f.reason === "unsourced-number")).toBe(false);
+    expect(validateProse("There is one challenge here.").clean).toContain("one challenge");
+
+    // number / stat shapes stay masked
+    const hundred = validateProse("improved by one hundred percent");
+    expect(hundred.clean).not.toMatch(/one\s+hundred/i);
+    expect(hundred.flags.some((f) => f.reason === "unsourced-number")).toBe(true);
+
+    const minute = validateProse("a one-minute conversation");
+    expect(minute.clean).not.toMatch(/one-minute/i);
+    expect(minute.flags.some((f) => f.reason === "unsourced-number")).toBe(true);
+
+    expect(validateProse("cut it by one third").flags.some((f) => f.reason === "unsourced-number")).toBe(true);
+    expect(validateProse("a one percent gain").flags.some((f) => f.reason === "unsourced-number")).toBe(true);
+  });
+
   it("flags a named-customer claim", () => {
     const r = validateProse("Trusted by customers like Boeing and Lockheed.");
     expect(r.flags.some((f) => f.reason === "named-customer")).toBe(true);
