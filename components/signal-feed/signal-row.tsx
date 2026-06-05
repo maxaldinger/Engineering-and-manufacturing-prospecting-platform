@@ -84,11 +84,6 @@ export function SignalRow({ group, expanded, onToggle, children }: SignalRowProp
     router.push("/sales-assist");
   };
 
-  const handleToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onToggle();
-  };
-
   const signalCount = group.signals.length;
 
   return (
@@ -98,63 +93,70 @@ export function SignalRow({ group, expanded, onToggle, children }: SignalRowProp
         expanded ? "border-primary/40" : "border-border hover:border-border-strong"
       )}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-2/40 transition-colors"
-      >
-        <span
-          className={cn(
-            "h-2.5 w-2.5 rounded-full flex-shrink-0",
-            URGENCY_DOT[group.urgency]
-          )}
-          aria-hidden
-        />
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-text-primary text-sm md:text-base truncate">
-              {group.company}
-            </span>
-            <span className="text-[10px] uppercase tracking-wider text-text-muted whitespace-nowrap">
-              {signalCount} signal{signalCount === 1 ? "" : "s"}
-            </span>
-            <ProductTypeChips ids={group.productTypes} />
-            {group.productTypes.length === 0 && group.manufacturingRelevant && (
-              <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-700">
-                Manufacturing
-              </span>
-            )}
-            {group.servicesCrossSell && (
-              <span
-                title="Hiring across multiple disciplines — a services / standardization cross-sell signal."
-                className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-violet-300 bg-violet-50 text-violet-700 whitespace-nowrap"
-              >
-                Multi-discipline
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-text-secondary mt-0.5 truncate">
-            {group.oneLiner}
-          </p>
-        </div>
-
-        <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border border-primary/30 bg-primary-subtle text-primary whitespace-nowrap flex-shrink-0">
-          {group.industry}
-        </span>
-
-        <span
-          className={cn(
-            "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border flex-shrink-0",
-            URGENCY_BADGE[group.urgency]
-          )}
+      {/* De-nested: the row is a flex container (not a button), so the toggle,
+          the Sales Assist button, and the chevron are SIBLING controls. No
+          button nests inside another (valid HTML, no hydration warning), and the
+          Sales Assist button no longer rides the row's toggle. */}
+      <div className="flex items-center gap-3 px-4 py-3.5 hover:bg-surface-2/40 transition-colors">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="flex items-center gap-3 flex-1 min-w-0 text-left"
         >
-          {group.urgency.toUpperCase()}
-        </span>
+          <span
+            className={cn(
+              "h-2.5 w-2.5 rounded-full flex-shrink-0",
+              URGENCY_DOT[group.urgency]
+            )}
+            aria-hidden
+          />
 
-        <span className="hidden sm:inline-block text-[10px] text-text-muted tabular-nums whitespace-nowrap flex-shrink-0">
-          {group.maxStrength}/100
-        </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-text-primary text-sm md:text-base truncate">
+                {group.company}
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-text-muted whitespace-nowrap">
+                {signalCount} signal{signalCount === 1 ? "" : "s"}
+              </span>
+              <ProductTypeChips ids={group.productTypes} />
+              {group.productTypes.length === 0 && group.manufacturingRelevant && (
+                <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-700">
+                  Manufacturing
+                </span>
+              )}
+              {group.servicesCrossSell && (
+                <span
+                  title="Hiring across multiple disciplines — a services / standardization cross-sell signal."
+                  className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-violet-300 bg-violet-50 text-violet-700 whitespace-nowrap"
+                >
+                  Multi-discipline
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-text-secondary mt-0.5 truncate">
+              {group.oneLiner}
+            </p>
+          </div>
+
+          <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border border-primary/30 bg-primary-subtle text-primary whitespace-nowrap flex-shrink-0">
+            {group.industry}
+          </span>
+
+          <span
+            className={cn(
+              "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border flex-shrink-0",
+              URGENCY_BADGE[group.urgency]
+            )}
+          >
+            {group.urgency.toUpperCase()}
+          </span>
+
+          <span className="hidden sm:inline-block text-[10px] text-text-muted tabular-nums whitespace-nowrap flex-shrink-0">
+            {group.maxStrength}/100
+          </span>
+        </button>
 
         <Button
           size="sm"
@@ -166,18 +168,19 @@ export function SignalRow({ group, expanded, onToggle, children }: SignalRowProp
           <span className="hidden sm:inline">Sales Assist</span>
         </Button>
 
-        <span
-          onClick={handleToggle}
-          className="flex-shrink-0 p-1 rounded hover:bg-surface-2 text-text-muted"
+        <button
+          type="button"
+          onClick={onToggle}
           aria-label={expanded ? "Collapse" : "Expand"}
+          className="flex-shrink-0 p-1 rounded hover:bg-surface-2 text-text-muted"
         >
           {expanded ? (
             <ChevronUp className="h-4 w-4" />
           ) : (
             <ChevronDown className="h-4 w-4" />
           )}
-        </span>
-      </button>
+        </button>
+      </div>
 
       {expanded && (
         <div className="border-t border-border bg-surface-2/20 px-5 py-5 animate-fade-in">
