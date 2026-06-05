@@ -528,6 +528,7 @@ export function MeddpiccBuilder({ tone, methodology, company }: Props) {
         <UniversalContextInput
           context={context}
           onChange={setContext}
+          hideUrl
           notesLabel="Meeting notes, call transcripts, or email threads"
           notesPlaceholder="Paste meeting notes, call transcripts, or email threads here. AI will only fill in the MEDDPICC fields that were actually discussed..."
         />

@@ -19,6 +19,9 @@ interface Props {
   context: UniversalContext;
   onChange: (next: UniversalContext) => void;
   notesLabel?: string;
+  // Notes-only modes (MEDDPICC, LOU) hide the company-website pull. Modes where a
+  // capability page genuinely helps (Product Fit, Email, Ask Anything) keep it.
+  hideUrl?: boolean;
 }
 
 export function UniversalContextInput({
@@ -26,6 +29,7 @@ export function UniversalContextInput({
   context,
   onChange,
   notesLabel = "Meeting notes or context",
+  hideUrl = false,
 }: Props) {
   const [fetching, setFetching] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -73,6 +77,7 @@ export function UniversalContextInput({
         />
       </Field>
 
+      {!hideUrl && (
       <div className="flex flex-col gap-2">
         <Field
           label="Or pull from a company website"
@@ -141,6 +146,7 @@ export function UniversalContextInput({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
