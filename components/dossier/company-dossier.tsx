@@ -337,8 +337,8 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
             </ul>
           </Section>
 
-          {/* OUTREACH DRAFT + Copy (grounded, validated) */}
-          <Section num={sectionNumber(brief, "outreach")} icon={Mail} title="Outreach Draft">
+          {/* OUTREACH SEQUENCE + per-touch Copy (grounded, validated) */}
+          <Section num={sectionNumber(brief, "outreach")} icon={Mail} title="Outreach Sequence">
             <OutreachCard outreach={brief.outreach} />
           </Section>
           </div>

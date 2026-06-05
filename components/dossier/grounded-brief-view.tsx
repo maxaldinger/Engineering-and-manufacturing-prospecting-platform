@@ -561,7 +561,7 @@ export function GroundedBriefView({
       )}
 
       {!hideOutreach && (
-        <Section num={num("outreach")} icon={Mail} title="Outreach Draft">
+        <Section num={num("outreach")} icon={Mail} title="Outreach Sequence">
           <OutreachCard outreach={brief.outreach} />
         </Section>
       )}
