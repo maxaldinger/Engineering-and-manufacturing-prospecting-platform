@@ -171,7 +171,7 @@ describe("assembleBrief grounding", () => {
 describe("assembleBrief with prose: every prose section carries its refs", () => {
   const prose: BriefProse = {
     executiveSummary: "Acme is hiring CNC programmers and mechanical designers in Denver.",
-    whyReseller: "Their parallel CNC and design hiring is exactly where HRS training and implementation support helps.",
+    whyReseller: "Their parallel CNC and design hiring is exactly where our training and implementation support helps.",
     painPoints: [{ text: "CAD to CAM handoff friction implied by parallel hiring.", discipline: "cam" }],
     talkingPoints: [
       {

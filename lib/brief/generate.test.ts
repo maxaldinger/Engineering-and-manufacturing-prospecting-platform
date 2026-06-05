@@ -94,7 +94,7 @@ describe("groundProse contains the model", () => {
   it("strips an injected stat from the why-reseller line", () => {
     const group = mkGroup([{ title: "CNC Programmer", description: "Hiring for production." }]);
     const { prose, flags } = groundProse(
-      { whyReseller: "HRS has trained over 5,000 engineers and fits your CNC hiring." },
+      { whyReseller: "Our team has trained over 5,000 engineers and fits your CNC hiring." },
       group
     );
     expect(flags.some((f) => f.field === "whyReseller" && f.reason === "unsourced-number")).toBe(true);

@@ -67,7 +67,7 @@ export interface CuratedRealField extends Branded {
 }
 
 // A curated slot with no real library is a typed GAP, never prose, so a
-// fabrication can never occupy it. Rendered visibly ("pending HRS battlecard").
+// fabrication can never occupy it. Rendered visibly ("pending battlecard").
 export interface CuratedGap extends Branded {
   readonly provenance: "curated";
   readonly gap: true;

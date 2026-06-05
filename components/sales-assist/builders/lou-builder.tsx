@@ -55,7 +55,7 @@ interface LouIssue {
   notes: string; // always blank from us, for the customer
 }
 
-const SYSTEM_PROMPT = `You are converting a sales rep's discovery notes into a Letter of Understanding for Hawk Ridge Systems, a multi-product engineering-software reseller. It is sent to the customer to confirm: they correct anything wrong, set priority and timeframe, and add notes.
+const SYSTEM_PROMPT = `You are converting a sales rep's discovery notes into a Letter of Understanding from a multi-product engineering-software reseller. It is sent to the customer to confirm: they correct anything wrong, set priority and timeframe, and add notes.
 
 Reply with ONLY a single JSON object, no prose, no markdown fences. Use this exact shape:
 
@@ -296,7 +296,7 @@ export function LouBuilder({ tone, methodology, company }: Props) {
       <div className="flex flex-col gap-5">
         <BuilderHeader
           title="Letter of Understanding"
-          subtitle="Paste discovery notes. The AI drafts the critical business issues and how Hawk Ridge can help. You set priority and timeframe, then export the styled spreadsheet for the customer to confirm and complete."
+          subtitle="Paste discovery notes. The AI drafts the critical business issues and how we can help. You set priority and timeframe, then export the styled spreadsheet for the customer to confirm and complete."
         />
         <form onSubmit={onGenerate} className="flex flex-col gap-4">
           <Input
@@ -478,8 +478,8 @@ export function LouBuilder({ tone, methodology, company }: Props) {
       <p className="text-xs italic text-text-muted leading-relaxed">
         Issues are drawn from the notes only. Priority is a suggestion the customer confirms; Timeframe
         ships blank unless the notes stated a real one, never an invented date. The exported .xlsx is
-        styled like the Hawk Ridge template, with Priority and Timeframe as dropdowns the customer fills,
-        and opens in Excel or Sheets.
+        styled like a standard Letter of Understanding, with Priority and Timeframe as dropdowns the
+        customer fills, and opens in Excel or Sheets.
         {removed > 0 && (
           <span> {removed} unverified figure{removed === 1 ? "" : "s"} were removed from the draft.</span>
         )}

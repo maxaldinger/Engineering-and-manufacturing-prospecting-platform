@@ -29,9 +29,9 @@ const PORTFOLIO_LIST = ALL_PRODUCT_TYPES.filter((t) => t.ourProducts.length > 0)
   .map((t) => `- ${t.label}: ${t.ourProducts.join(", ")}`)
   .join("\n");
 
-const SYSTEM_PROMPT = `You are a Hawk Ridge Systems sales engineer scoring how well the SOLIDWORKS portfolio fits ONE specific prospect, based ONLY on the rep's notes.
+const SYSTEM_PROMPT = `You are a sales engineer scoring how well the SOLIDWORKS portfolio fits ONE specific prospect, based ONLY on the rep's notes.
 
-Hawk Ridge Systems portfolio (score the products that are relevant to this prospect):
+Portfolio (score the products that are relevant to this prospect):
 ${PORTFOLIO_LIST}
 
 Reply with ONLY a single JSON object, no prose, no markdown fences:
@@ -454,7 +454,7 @@ function Scorecard({
         )}
 
         <p className="border-t border-border pt-4 text-xs italic text-text-muted leading-relaxed">
-          Scores are grounded judgments based on the rep&apos;s notes and Hawk Ridge Systems product
+          Scores are grounded judgments based on the rep&apos;s notes and product
           capabilities. Actual fit may vary with deeper technical discovery.
           {removed > 0 && (
             <span> {removed} unverified figure{removed === 1 ? "" : "s"} were removed from the reasoning.</span>

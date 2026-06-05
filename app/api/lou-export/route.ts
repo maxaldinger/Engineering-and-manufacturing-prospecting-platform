@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import ExcelJS from "exceljs";
+import { BRAND } from "@/lib/brand";
 
 // The styled .xlsx is built server-side with ExcelJS (Node), which gives us fills,
 // borders, merges, and dropdowns that the plain client-side writer cannot. It
-// mirrors the Hawk Ridge Letter of Understanding template: navy header band, a
+// mirrors a standard reseller Letter of Understanding template: navy header band, a
 // title, an intro box, and a bordered issues table with yellow Priority and
 // Timeframe dropdown columns the customer fills in.
 export const runtime = "nodejs";
@@ -58,13 +59,13 @@ export async function POST(req: NextRequest) {
   const account = (body.account || "the account").trim();
   const coverLine =
     (body.coverLine || "").trim() ||
-    `This Letter of Understanding captures what Hawk Ridge Systems understood from our discovery conversation with ${account}.`;
+    `This Letter of Understanding captures what we understood from our discovery conversation with ${account}.`;
   const issues = Array.isArray(body.issues) ? body.issues : [];
   const categoryList =
     Array.isArray(body.categories) && body.categories.length ? body.categories : ["Design", "Manufacturing"];
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Hawk Ridge Systems";
+  wb.creator = BRAND.reseller.name;
   const ws = wb.addWorksheet("Letter of Understanding", {
     views: [{ state: "frozen", ySplit: 6, showGridLines: false }],
   });

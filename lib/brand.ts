@@ -17,8 +17,8 @@ export const BRAND = {
   // the brief routes through here, never a hardcoded string. The product line
   // (SOLIDWORKS) stays catalog-fixed and is NOT genericized by this.
   reseller: {
-    name: "Hawk Ridge Systems",
-    short: "HRS",
+    name: "Our Team",
+    short: "our team",
     supportLine:
       "US-based engineering support, training, and implementation",
   },

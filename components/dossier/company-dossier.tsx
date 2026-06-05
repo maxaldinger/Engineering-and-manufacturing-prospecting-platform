@@ -301,8 +301,8 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
           </div>
 
           {/* Action: Sales Assist only. Add to Territory and Mark Pursuing
-              removed (toast-only stubs, HRS's to build). The Sales Assist entry
-              point is preserved verbatim. */}
+              removed (toast-only stubs, backend work to build). The Sales Assist
+              entry point is preserved verbatim. */}
           <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <Button onClick={sendToAssist} className="sm:flex-1">
               <Sparkles className="h-4 w-4" />

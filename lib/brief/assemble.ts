@@ -201,7 +201,7 @@ function buildDisplacement(group: CompanyGroup): DisplacementEntry[] {
       positioning:
         !fit.draft && fit.reasons.length > 0
           ? curated(fit.reasons.join(" "), "catalog fit (validated)")
-          : curatedGap("pending HRS battlecard"),
+          : curatedGap("pending battlecard"),
     });
   }
   return out;
@@ -227,7 +227,7 @@ function buildKeyContacts(group: CompanyGroup): KeyContact[] {
       realContacts.push({
         role: detected(`${c.name}, ${c.title}`, [ref]),
         dept: curated(c.title, "ZoomInfo title"),
-        valueProp: curatedGap("pending HRS battlecard"),
+        valueProp: curatedGap("pending battlecard"),
         tier: inferred("primary", "named decision-maker"),
         named: true,
       });
@@ -279,7 +279,7 @@ function buildTalkingPoints(
       refs
     ),
     discipline: disciplineField(p.discipline),
-    proof: curatedGap("pending HRS battlecard"),
+    proof: curatedGap("pending battlecard"),
   }));
 }
 
@@ -328,7 +328,7 @@ function buildPainPoints(
     text: inferredFromSignals(p.text, "paraphrase of the prospect's signals", refs),
     discipline: disciplineField(p.discipline),
     severity: computeSeverity(evidenceFor(group.signals, p.discipline)),
-    solution: curatedGap("pending HRS battlecard"),
+    solution: curatedGap("pending battlecard"),
   }));
 }
 

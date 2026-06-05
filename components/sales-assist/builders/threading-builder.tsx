@@ -300,7 +300,7 @@ export function ThreadingBuilder({ tone, methodology, company }: Props) {
 
       <p className="rounded-md border border-dashed border-border bg-surface-2/40 px-3 py-2 text-xs text-text-muted leading-relaxed">
         Contacts live in this browser session only. Saving a committee across sessions and syncing it
-        per rep is on the HRS backend (pending).
+        per rep is backend work (pending).
       </p>
 
       <form onSubmit={onAnalyze} className="flex flex-col gap-3">

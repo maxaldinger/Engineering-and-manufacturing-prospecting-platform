@@ -2,8 +2,8 @@
 
 Every brief field is built through a `provenance.ts` builder, so nothing is
 untagged. `detected` and `computed` are the only fields that may carry a number;
-`inferred` and `curated` are qualitative only. A `curated` slot with no real HRS
-battlecard renders as a visible `CuratedGap` ("pending HRS battlecard"), never
+`inferred` and `curated` are qualitative only. A `curated` slot with no real
+battlecard renders as a visible `CuratedGap` ("pending battlecard"), never
 prose.
 
 | Section / field | Provenance | Basis / source | ZoomInfo absent |
@@ -19,9 +19,9 @@ prose.
 | Why \<reseller\> | reseller name + supportLine from `BRAND.reseller`; battlecard claims -> CuratedGap | config | full, claims thin |
 | Pain Points: text | inferred (LLM) | inferredFromSignals, refs = signals | partial |
 | Pain Points: discipline | detected / inferred | as Disciplines | full |
-| Pain Points: reseller solution | CuratedGap | pending HRS battlecard | gap |
+| Pain Points: reseller solution | CuratedGap | pending battlecard | gap |
 | Talking Points: Q/A | inferred (LLM) | inferredFromSignals, refs = signals | partial |
-| Talking Points: proof line | CuratedGap | pending HRS battlecard | gap |
+| Talking Points: proof line | CuratedGap | pending battlecard | gap |
 | Competitive Displacement: competitor | detected | sourceRef = signals naming it | full |
 | Competitive Displacement: positioning | curated (real catalog reasons, CAM) or CuratedGap (draft) | catalog fit / pending | full |
 | Key Contacts (ZoomInfo) | detected | named contact, sourceRef = ZoomInfo signal | named |
@@ -33,7 +33,7 @@ prose.
 A number appears only if DETECTED (read from a signal) or COMPUTED (derived by a
 registered, recomputable scorer over detected inputs). LLM-asserted numbers are
 stripped by the post-parse validator. Specific stats and named customers require
-a real HRS battlecard, else they are omitted or downgraded to qualitative.
+a real battlecard, else they are omitted or downgraded to qualitative.
 
 ## Ranking and motion
 Ranking keys on activity (route count, then signal count), never raw discipline

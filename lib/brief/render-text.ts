@@ -49,7 +49,7 @@ export function renderBriefText(b: GroundedBrief): string {
   for (const d of b.disciplines) L.push("  " + field("·", d));
   L.push("");
 
-  L.push(`Why ${b.reseller.name} (${b.reseller.short}):`);
+  L.push(`Why ${b.reseller.name}:`);
   L.push("  " + field("", b.whyReseller));
   L.push("");
 

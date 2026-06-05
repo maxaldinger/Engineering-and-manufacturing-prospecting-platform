@@ -50,9 +50,9 @@ describe("builders enforce their provenance contract", () => {
 
   it("curated requires a real reference; curatedGap is a typed, visible gap", () => {
     expect(() => curated("claim", "")).toThrow(/library/);
-    const gap = curatedGap("pending HRS battlecard");
+    const gap = curatedGap("pending battlecard");
     expect(isCuratedGap(gap)).toBe(true);
-    expect(gap.pending).toBe("pending HRS battlecard");
+    expect(gap.pending).toBe("pending battlecard");
     expect(isCuratedGap(curated("real claim", "battlecard#12"))).toBe(false);
   });
 });

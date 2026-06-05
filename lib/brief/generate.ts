@@ -20,7 +20,7 @@ function normalizeChannel(c: unknown): OutreachChannel {
   return "email";
 }
 
-export const GROUNDED_SYSTEM_PROMPT = `You are a sales analyst summarizing public signal data for one prospect. You represent ${BRAND.reseller.name} (${BRAND.reseller.short}), whose real capabilities are: ${BRAND.reseller.supportLine}. Reply with ONLY a single JSON object, no prose, no markdown fences:
+export const GROUNDED_SYSTEM_PROMPT = `You are a sales analyst summarizing public signal data for one prospect. You represent ${BRAND.reseller.name}, whose real capabilities are: ${BRAND.reseller.supportLine}. Reply with ONLY a single JSON object, no prose, no markdown fences:
 
 {
   "executiveSummary": "<2-3 sentences. Summarize ONLY what the signals show: their situation, why they are on the radar, the engineering or manufacturing pressure visible in the signals.>",
