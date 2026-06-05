@@ -31,92 +31,121 @@ interface Props {
   company: ActiveCompanyContext | null;
 }
 
-type Category = "Pain" | "Scope" | "Value" | "Next Step";
 type Priority = "" | "High" | "Medium" | "Low";
 
-const CATEGORY_OPTIONS: Category[] = ["Pain", "Scope", "Value", "Next Step"];
+const CATEGORY_OPTIONS = [
+  "Design",
+  "Manufacturing",
+  "Simulation",
+  "Electrical",
+  "Data Management",
+  "Additive / 3D Printing",
+  "Inspection / Scanning",
+  "Training & Services",
+];
 const PRIORITY_OPTIONS: Priority[] = ["", "High", "Medium", "Low"];
 
-interface PlanItem {
+interface LouIssue {
   id: string;
-  category: Category;
-  item: string;
+  businessIssue: string; // Critical Business Issue, grounded in the notes
+  recommendedResponse: string; // "Can we help? If so, how?", names the product
+  category: string;
   priority: Priority; // suggested, the customer confirms or changes
-  timeFrame: string; // blank unless the notes stated a real one; the customer sets it
-  comments: string; // always blank from us, for the customer
+  timeframe: string; // blank unless the notes stated one; the customer sets it
+  notes: string; // always blank from us, for the customer
 }
 
-const SYSTEM_PROMPT = `You are turning a sales rep's discovery notes into a MUTUAL ACTION PLAN that will be sent to the customer to complete. It captures what we understood; the customer then confirms priority, sets the time frame, and adds comments.
+const SYSTEM_PROMPT = `You are converting a sales rep's discovery notes into a Letter of Understanding for Hawk Ridge Systems, a multi-product engineering-software reseller. It is sent to the customer to confirm: they correct anything wrong, set priority and timeframe, and add notes.
 
-Reply with ONLY a single JSON object, no prose, no markdown fences:
+Reply with ONLY a single JSON object, no prose, no markdown fences. Use this exact shape:
 
 {
-  "coverLine": "<1 to 2 sentence cover line, factual: a mutual action plan drafted from the discovery conversation. No fluff.>",
-  "items": [
+  "coverLine": "<1 sentence, factual: this captures what we understood from the discovery conversation. No fluff, no stats.>",
+  "issues": [
     {
-      "category": "Pain" | "Scope" | "Value" | "Next Step",
-      "item": "<1 to 2 sentences: an understood pain, a piece of scope, a value or outcome they want, or an agreed next step, in their language, grounded in the notes.>",
+      "businessIssue": "<1 to 3 sentences describing a pain or business problem the rep documented, in the customer's language.>",
+      "recommendedResponse": "<2 to 4 sentences: name the specific portfolio product and the capability that addresses the issue, and the qualitative benefit. No invented numbers.>",
+      "category": "Design" | "Manufacturing" | "Simulation" | "Electrical" | "Data Management" | "Additive / 3D Printing" | "Inspection / Scanning" | "Training & Services",
       "priority": "High" | "Medium" | "Low" | "",
-      "timeFrame": "<a real date or deadline ONLY if the notes state one, otherwise an empty string>"
+      "timeframe": "<a real date or quarter ONLY if the notes state one, otherwise an empty string>"
     }
   ]
 }
 
+Category guidance (pick the closest single fit per issue):
+- Design: SOLIDWORKS CAD, DriveWorks design automation, large assemblies, surfacing, CAD interoperability.
+- Manufacturing: CAMWorks, SOLIDWORKS CAM, 5-axis, mill-turn, feature recognition, shop-floor programming.
+- Simulation: SOLIDWORKS Simulation, structural, thermal, fatigue, FEA, code compliance.
+- Electrical: SOLIDWORKS Electrical schematic and 3D, control panel design.
+- Data Management: SOLIDWORKS PDM, 3DEXPERIENCE Works, revision control, traceability, change management.
+- Additive / 3D Printing: Markforged, HP MJF, fixtures, prototyping, low-volume parts.
+- Inspection / Scanning: Artec 3D scanners, reverse engineering, first article inspection.
+- Training & Services: implementation, configuration, mentoring, custom training, migrations.
+
 Rules:
-- One item per distinct point in the notes: their pains, the scope discussed, the value or outcomes they care about, and any agreed next steps. 4 to 10 items is typical.
-- Only include items the rep actually documented. Do not invent pains, scope, value, or steps.
+- One issue per distinct business problem in the notes. 3 to 8 rows is typical.
+- Only include issues the rep documented. Do not invent pains, products, or outcomes.
+- Pick the SINGLE best category. If an issue spans two, pick the dominant one.
 - priority is your SUGGESTED read, which the customer can change. If you have no basis, use "".
-- timeFrame: leave it EMPTY unless the notes contain a real date or deadline the customer stated. NEVER invent a date or timeline. The customer sets this.
-- No statistics, no percentages, no dollar figures, no fabricated numbers. Qualitative only.
+- timeframe: leave it EMPTY unless the notes contain a real date or deadline the customer stated. NEVER invent a date or timeline. The customer sets this.
+- No statistics, no percentages, no dollar figures, no fabricated numbers anywhere. Qualitative only.
 - No named customers. No em dashes. Use commas or periods.`;
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-interface ParsedPlan {
+interface ParsedLou {
   coverLine: string;
-  items: PlanItem[];
+  issues: LouIssue[];
 }
 
-function parsePlan(raw: string): ParsedPlan | null {
+function parseLou(raw: string): ParsedLou | null {
   if (!raw) return null;
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start < 0 || end < 0) return null;
   try {
     const p = JSON.parse(raw.slice(start, end + 1));
-    if (!p || !Array.isArray(p.items)) return null;
-    const items: PlanItem[] = p.items
-      .filter((x: unknown) => x && typeof (x as { item?: unknown }).item === "string")
-      .map((x: Record<string, unknown>): PlanItem => ({
+    if (!p || !Array.isArray(p.issues)) return null;
+    const issues: LouIssue[] = p.issues
+      .filter(
+        (x: unknown) =>
+          x &&
+          typeof (x as { businessIssue?: unknown }).businessIssue === "string" &&
+          typeof (x as { recommendedResponse?: unknown }).recommendedResponse === "string"
+      )
+      .map((x: Record<string, unknown>): LouIssue => ({
         id: uid(),
-        category: (CATEGORY_OPTIONS as string[]).includes(x.category as string)
-          ? (x.category as Category)
-          : "Pain",
-        item: String(x.item ?? "").trim(),
+        businessIssue: String(x.businessIssue ?? "").trim(),
+        recommendedResponse: String(x.recommendedResponse ?? "").trim(),
+        category: CATEGORY_OPTIONS.includes(x.category as string)
+          ? (x.category as string)
+          : "Manufacturing",
         priority: (PRIORITY_OPTIONS as string[]).includes(x.priority as string)
           ? (x.priority as Priority)
           : "",
-        timeFrame: String(x.timeFrame ?? "").trim(),
-        comments: "",
+        timeframe: String(x.timeframe ?? "").trim(),
+        notes: "",
       }));
-    return { coverLine: String(p.coverLine ?? "").trim(), items };
+    return { coverLine: String(p.coverLine ?? "").trim(), issues };
   } catch {
     return null;
   }
 }
 
-const slug = (s: string) => (s || "mutual-action-plan").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+const slug = (s: string) =>
+  (s || "letter-of-understanding").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
 
 export function LouBuilder({ tone, methodology, company }: Props) {
-  const [mode, setMode] = React.useState<"notes" | "plan">("notes");
+  const [mode, setMode] = React.useState<"notes" | "table">("notes");
   const [accountName, setAccountName] = React.useState(company?.company ?? "");
   const [context, setContext] = React.useState<UniversalContext>(emptyContext);
   const [coverLine, setCoverLine] = React.useState("");
-  const [items, setItems] = React.useState<PlanItem[]>([]);
+  const [issues, setIssues] = React.useState<LouIssue[]>([]);
   const [removed, setRemoved] = React.useState(0);
   const [streaming, setStreaming] = React.useState(false);
+  const [exporting, setExporting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const abortRef = React.useRef<AbortController | null>(null);
 
@@ -169,7 +198,7 @@ export function LouBuilder({ tone, methodology, company }: Props) {
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
       }
-      const parsed = parsePlan(buffer);
+      const parsed = parseLou(buffer);
       if (!parsed) {
         throw new Error("Could not parse model response. Try regenerating.");
       }
@@ -182,15 +211,21 @@ export function LouBuilder({ tone, methodology, company }: Props) {
         return r.clean;
       };
       setCoverLine(clean(parsed.coverLine));
-      setItems(parsed.items.map((it) => ({ ...it, item: clean(it.item) })));
+      setIssues(
+        parsed.issues.map((it) => ({
+          ...it,
+          businessIssue: clean(it.businessIssue),
+          recommendedResponse: clean(it.recommendedResponse),
+        }))
+      );
       setRemoved(removedCount);
-      setMode("plan");
+      setMode("table");
     } catch (e: any) {
       if (e?.name === "AbortError") return;
       const msg = e?.message || "Generate failed";
       setError(
         msg.includes("ANTHROPIC_API_KEY")
-          ? "Set ANTHROPIC_API_KEY in your .env.local to enable the action plan."
+          ? "Set ANTHROPIC_API_KEY in your .env.local to enable the Letter of Understanding."
           : msg
       );
     } finally {
@@ -199,41 +234,60 @@ export function LouBuilder({ tone, methodology, company }: Props) {
     }
   };
 
-  const addItem = () =>
-    setItems((rows) => [
+  const addIssue = () =>
+    setIssues((rows) => [
       ...rows,
-      { id: uid(), category: "Next Step", item: "", priority: "", timeFrame: "", comments: "" },
+      {
+        id: uid(),
+        businessIssue: "",
+        recommendedResponse: "",
+        category: "Manufacturing",
+        priority: "",
+        timeframe: "",
+        notes: "",
+      },
     ]);
-  const updateItem = (id: string, patch: Partial<PlanItem>) =>
-    setItems((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  const deleteItem = (id: string) => setItems((rows) => rows.filter((r) => r.id !== id));
+  const updateIssue = (id: string, patch: Partial<LouIssue>) =>
+    setIssues((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const deleteIssue = (id: string) => setIssues((rows) => rows.filter((r) => r.id !== id));
 
   const exportXlsx = async () => {
-    const XLSX = await import("xlsx");
-    const account = accountName || "the account";
-    const header = ["Category", "Understood Item", "Priority", "Time Frame", "Comments"];
-    const aoa: string[][] = [
-      [`Mutual Action Plan: ${account}`],
-      [coverLine || `Mutual action plan for ${account}, drafted from our discovery conversation.`],
-      ["Please confirm or adjust the Priority, set a Time Frame, and add your Comments for each item."],
-      [],
-      header,
-      ...items.map((it) => [it.category, it.item, it.priority, it.timeFrame, it.comments]),
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [{ wch: 14 }, { wch: 64 }, { wch: 14 }, { wch: 24 }, { wch: 40 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Action Plan");
-    const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([out], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${slug(account)}-mutual-action-plan.xlsx`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (exporting || issues.length === 0) return;
+    setExporting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/lou-export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account: accountName || "the account",
+          coverLine,
+          categories: CATEGORY_OPTIONS,
+          issues: issues.map((it) => ({
+            businessIssue: it.businessIssue,
+            recommendedResponse: it.recommendedResponse,
+            category: it.category,
+            priority: it.priority,
+            timeframe: it.timeframe,
+            notes: it.notes,
+          })),
+        }),
+      });
+      if (!res.ok) {
+        throw new Error((await res.text().catch(() => "")) || `Export failed: ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${slug(accountName)}-letter-of-understanding.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setError(e?.message || "Export failed");
+    } finally {
+      setExporting(false);
+    }
   };
 
   // --- Notes mode -----------------------------------------------------------
@@ -241,21 +295,21 @@ export function LouBuilder({ tone, methodology, company }: Props) {
     return (
       <div className="flex flex-col gap-5">
         <BuilderHeader
-          title="Mutual Action Plan"
-          subtitle="Paste discovery notes. The AI drafts the understood pains, scope, value, and next steps. You and the customer set priority, time frame, and comments, then export an editable spreadsheet."
+          title="Letter of Understanding"
+          subtitle="Paste discovery notes. The AI drafts the critical business issues and how Hawk Ridge can help. You set priority and timeframe, then export the styled spreadsheet for the customer to confirm and complete."
         />
         <form onSubmit={onGenerate} className="flex flex-col gap-4">
           <Input
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
-            placeholder="Account name (used on the plan)"
+            placeholder="Account name (used on the letter)"
           />
           <UniversalContextInput
             context={context}
             onChange={setContext}
             hideUrl
             notesLabel="Discovery notes"
-            notesPlaceholder="Paste meeting notes, call transcript, or key discussion points. Pains, scope discussed, the outcomes they care about, and any agreed next steps..."
+            notesPlaceholder="Paste meeting notes, call transcript, or key discussion points. Their pains, the current tools, the scope discussed, and any agreed next steps..."
           />
           <div className="flex items-center gap-2">
             {streaming ? (
@@ -266,12 +320,12 @@ export function LouBuilder({ tone, methodology, company }: Props) {
             ) : (
               <Button type="submit" disabled={!hasContext(context)}>
                 <Sparkles className="h-4 w-4" />
-                Draft Action Plan
+                Draft Letter of Understanding
               </Button>
             )}
-            {items.length > 0 && !streaming && (
-              <Button type="button" variant="ghost" onClick={() => setMode("plan")}>
-                Back to plan
+            {issues.length > 0 && !streaming && (
+              <Button type="button" variant="ghost" onClick={() => setMode("table")}>
+                Back to letter
               </Button>
             )}
           </div>
@@ -286,12 +340,12 @@ export function LouBuilder({ tone, methodology, company }: Props) {
     );
   }
 
-  // --- Plan mode ------------------------------------------------------------
+  // --- Table mode -----------------------------------------------------------
   return (
     <div className="flex flex-col gap-5">
       <BuilderHeader
-        title="Mutual Action Plan"
-        subtitle={`Drafted for ${accountName || "the account"}. Edit any item, then export an editable spreadsheet to send to the customer.`}
+        title="Letter of Understanding"
+        subtitle={`Drafted for ${accountName || "the account"}. Edit any row, then export the styled spreadsheet to send to the customer.`}
       />
 
       {coverLine && (
@@ -309,13 +363,13 @@ export function LouBuilder({ tone, methodology, company }: Props) {
             <FileEdit className="h-3.5 w-3.5" />
             Edit Notes
           </Button>
-          <Button variant="secondary" onClick={addItem}>
+          <Button variant="secondary" onClick={addIssue}>
             <Plus className="h-3.5 w-3.5" />
-            Add Item
+            Add Issue
           </Button>
         </div>
-        <Button onClick={exportXlsx} disabled={items.length === 0}>
-          <Download className="h-3.5 w-3.5" />
+        <Button onClick={exportXlsx} disabled={issues.length === 0 || exporting}>
+          {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
           Export .xlsx
         </Button>
       </div>
@@ -325,21 +379,40 @@ export function LouBuilder({ tone, methodology, company }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-2/60 border-b border-border text-left">
-                <th className="font-semibold text-text-secondary px-3 py-3 w-[12%]">Category</th>
-                <th className="font-semibold text-text-secondary px-3 py-3 w-[40%]">Understood Item</th>
-                <th className="font-semibold text-text-secondary px-3 py-3 w-[12%]">Priority</th>
-                <th className="font-semibold text-text-secondary px-3 py-3 w-[16%]">Time Frame</th>
-                <th className="font-semibold text-text-secondary px-3 py-3 w-[16%]">Comments</th>
+                <th className="font-semibold text-text-secondary px-3 py-3 w-[26%]">
+                  Critical Business Issue
+                </th>
+                <th className="font-semibold text-text-secondary px-3 py-3 w-[28%]">
+                  Can we help? If so, how?
+                </th>
+                <th className="font-semibold text-text-secondary px-3 py-3 w-[13%]">Category</th>
+                <th className="font-semibold text-text-secondary px-3 py-3 w-[10%]">Priority</th>
+                <th className="font-semibold text-text-secondary px-3 py-3 w-[10%]">Timeframe</th>
+                <th className="font-semibold text-text-secondary px-3 py-3 w-[13%]">Notes</th>
                 <th className="font-semibold text-text-secondary px-2 py-3 w-[4%]" />
               </tr>
             </thead>
             <tbody>
-              {items.map((row) => (
+              {issues.map((row) => (
                 <tr key={row.id} className="border-b border-border last:border-0 align-top">
+                  <td className="px-3 py-2.5">
+                    <Textarea
+                      value={row.businessIssue}
+                      onChange={(e) => updateIssue(row.id, { businessIssue: e.target.value })}
+                      className="min-h-[72px] text-sm"
+                    />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Textarea
+                      value={row.recommendedResponse}
+                      onChange={(e) => updateIssue(row.id, { recommendedResponse: e.target.value })}
+                      className="min-h-[72px] text-sm"
+                    />
+                  </td>
                   <td className="px-3 py-2.5">
                     <Select
                       value={row.category}
-                      onChange={(e) => updateItem(row.id, { category: e.target.value as Category })}
+                      onChange={(e) => updateIssue(row.id, { category: e.target.value })}
                       className="text-xs h-9"
                     >
                       {CATEGORY_OPTIONS.map((c) => (
@@ -350,16 +423,9 @@ export function LouBuilder({ tone, methodology, company }: Props) {
                     </Select>
                   </td>
                   <td className="px-3 py-2.5">
-                    <Textarea
-                      value={row.item}
-                      onChange={(e) => updateItem(row.id, { item: e.target.value })}
-                      className="min-h-[64px] text-sm"
-                    />
-                  </td>
-                  <td className="px-3 py-2.5">
                     <Select
                       value={row.priority}
-                      onChange={(e) => updateItem(row.id, { priority: e.target.value as Priority })}
+                      onChange={(e) => updateIssue(row.id, { priority: e.target.value as Priority })}
                       className="text-xs h-9"
                     >
                       {PRIORITY_OPTIONS.map((p) => (
@@ -371,16 +437,16 @@ export function LouBuilder({ tone, methodology, company }: Props) {
                   </td>
                   <td className="px-3 py-2.5">
                     <Input
-                      value={row.timeFrame}
-                      onChange={(e) => updateItem(row.id, { timeFrame: e.target.value })}
+                      value={row.timeframe}
+                      onChange={(e) => updateIssue(row.id, { timeframe: e.target.value })}
                       placeholder="customer sets"
                       className="text-xs h-9"
                     />
                   </td>
                   <td className="px-3 py-2.5">
                     <Input
-                      value={row.comments}
-                      onChange={(e) => updateItem(row.id, { comments: e.target.value })}
+                      value={row.notes}
+                      onChange={(e) => updateIssue(row.id, { notes: e.target.value })}
                       placeholder="customer adds"
                       className="text-xs h-9"
                     />
@@ -388,19 +454,19 @@ export function LouBuilder({ tone, methodology, company }: Props) {
                   <td className="px-2 py-2.5">
                     <button
                       type="button"
-                      onClick={() => deleteItem(row.id)}
+                      onClick={() => deleteIssue(row.id)}
                       className="p-1.5 rounded text-text-muted hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
-                      aria-label="Delete item"
+                      aria-label="Delete issue"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </td>
                 </tr>
               ))}
-              {items.length === 0 && (
+              {issues.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center text-text-muted py-10 text-sm">
-                    No items yet. Click Add Item or Edit Notes to start.
+                  <td colSpan={7} className="text-center text-text-muted py-10 text-sm">
+                    No issues yet. Click Add Issue or Edit Notes to start.
                   </td>
                 </tr>
               )}
@@ -410,9 +476,10 @@ export function LouBuilder({ tone, methodology, company }: Props) {
       </div>
 
       <p className="text-xs italic text-text-muted leading-relaxed">
-        Items are drawn from the notes only. Priority is a suggestion the customer confirms; Time Frame
-        ships blank unless the notes stated a real one, never an invented date. The exported .xlsx opens
-        and edits in Excel or Sheets so the customer can complete it.
+        Issues are drawn from the notes only. Priority is a suggestion the customer confirms; Timeframe
+        ships blank unless the notes stated a real one, never an invented date. The exported .xlsx is
+        styled like the Hawk Ridge template, with Priority and Timeframe as dropdowns the customer fills,
+        and opens in Excel or Sheets.
         {removed > 0 && (
           <span> {removed} unverified figure{removed === 1 ? "" : "s"} were removed from the draft.</span>
         )}
