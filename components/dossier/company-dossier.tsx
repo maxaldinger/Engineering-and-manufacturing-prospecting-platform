@@ -70,18 +70,29 @@ const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
 // fall back to the original if stripping would leave nothing.
 const SIGNAL_LABELS =
   "Job Title|Job Category|Job Type|Time Type|Posted Date|Posted|Location|Department|Requisition ID|Requisition|Req ID|Employment Type|Schedule|Category|Brand|Division|Worker Type|Pay Range|Salary";
-const SIGNAL_LABEL_HEAD = new RegExp(`^\\s*(?:${SIGNAL_LABELS})\\s*:`, "i");
-const SIGNAL_LABEL_SEGMENT = new RegExp(
-  `^\\s*(?:${SIGNAL_LABELS})\\s*:\\s*.*?(?=(?:${SIGNAL_LABELS})\\s*:|$)`,
+// A leading "Label: value" segment, but only when ANOTHER label follows, so the
+// trailing real prose (which has no label after it) is never consumed.
+const SIGNAL_LABEL_FOLLOWED = new RegExp(
+  `^\\s*(?:${SIGNAL_LABELS})\\s*:\\s*.*?(?=(?:${SIGNAL_LABELS})\\s*:)`,
   "i"
 );
+// A final lone "Label:" key (its value runs into the real prose with no delimiter,
+// so only the key is dropped).
+const SIGNAL_LABEL_KEY = new RegExp(`^\\s*(?:${SIGNAL_LABELS})\\s*:\\s*`, "i");
 
 function cleanSignalText(desc: string): string {
   const original = (desc ?? "").trim();
-  let t = original;
-  for (let i = 0; i < 12 && SIGNAL_LABEL_HEAD.test(t); i++) {
-    t = t.replace(SIGNAL_LABEL_SEGMENT, "").trimStart();
+  // Strip a leading "Job Description" section header (ATS feeds often double it,
+  // with or without a colon) before the Label: value pass.
+  let t = original.replace(/^(?:job\s+description\s*:?\s*)+/i, "");
+  // Drop leading "Label: value" segments that are followed by another label.
+  for (let i = 0; i < 12; i++) {
+    const m = t.match(SIGNAL_LABEL_FOLLOWED);
+    if (!m || !m[0]) break;
+    t = t.slice(m[0].length).trimStart();
   }
+  // Drop a final lone leading label key, if any.
+  t = t.replace(SIGNAL_LABEL_KEY, "").trimStart();
   return t.trim() || original;
 }
 
