@@ -2,6 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Semantic tokens as RGB channels so Tailwind opacity modifiers (bg-surface/50,
+   border-border/40, primary/15) keep working, and a single `.dark` class on
+   <html> flips the whole app. Light is the default; the pre-hydration script in
+   the root layout adds `.dark` from the saved preference (or system) before
+   paint, so there is no flash. */
+:root {
+  --background: 246 248 251;
+  --surface: 255 255 255;
+  --surface-2: 238 242 247;
+  --border: 219 226 236;
+  --border-strong: 184 196 212;
+  --text-primary: 15 31 58;
+  --text-secondary: 71 85 105;
+  --text-muted: 148 163 184;
+  --navy: 15 42 86;
+  --navy-deep: 10 31 66;
+  --navy-soft: 30 58 108;
+  --primary: 30 155 203;
+  --primary-hover: 24 129 173;
+  --primary-subtle: 224 242 250;
+  --primary-deep: 15 42 86;
+  --scrollbar: 212 212 216;
+}
+
+.dark {
+  --background: 11 15 25;
+  --surface: 19 25 38;
+  --surface-2: 28 35 52;
+  --border: 39 47 64;
+  --border-strong: 55 65 86;
+  --text-primary: 226 232 240;
+  --text-secondary: 148 163 184;
+  --text-muted: 100 116 139;
+  --navy: 226 232 240;
+  --navy-deep: 203 213 225;
+  --navy-soft: 148 163 184;
+  --primary: 56 189 248;
+  --primary-hover: 125 211 252;
+  --primary-subtle: 12 40 56;
+  --primary-deep: 226 232 240;
+  --scrollbar: 51 65 85;
+}
+
 @layer base {
   html,
   body {
@@ -25,14 +68,14 @@
   }
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #d4d4d8 transparent;
+    scrollbar-color: rgb(var(--scrollbar)) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #d4d4d8;
+    background: rgb(var(--scrollbar));
     border-radius: 9999px;
   }
 }

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Radio, Sparkles } from "lucide-react";
+import { Radio, Sparkles, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "./brand-mark";
+import { useTheme } from "@/components/providers/theme-provider";
 import { BRAND } from "@/lib/brand";
 
 const NAV = [
@@ -14,6 +15,7 @@ const NAV = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { theme, toggle } = useTheme();
 
   return (
     <aside className="hidden md:flex w-60 flex-col border-r border-border bg-surface h-screen sticky top-0">
@@ -55,6 +57,18 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="px-3 py-4 border-t border-border">
+        <button
+          type="button"
+          onClick={toggle}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-text-secondary hover:text-text-primary hover:bg-surface-2 border border-transparent transition-all"
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          <span className="font-medium">{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+        </button>
+      </div>
     </aside>
   );
 }
