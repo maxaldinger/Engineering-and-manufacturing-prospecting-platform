@@ -44,6 +44,21 @@ function normNum(s: string): string {
   return s.toLowerCase().replace(/[\s$,]/g, "");
 }
 
+// Numbers that appear in source text (notes, a fetched page), so validateProse can
+// keep a figure the prospect actually stated while stripping anything the model
+// invents. Mirrors the brief's allowed-number extraction, for the sales builders.
+export function extractNumbers(...texts: string[]): string[] {
+  const re = /\$?\d[\d,]*(?:\.\d+)?\s?(?:%|x|million|billion|thousand|[mkb])?/gi;
+  const out = new Set<string>();
+  for (const t of texts) {
+    for (const m of (t ?? "").matchAll(re)) {
+      const v = m[0].trim();
+      if (/\d/.test(v)) out.add(v);
+    }
+  }
+  return [...out];
+}
+
 export function validateProse(
   text: string,
   allowedNumbers: readonly string[] = []
