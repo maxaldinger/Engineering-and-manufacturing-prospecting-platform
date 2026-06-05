@@ -239,17 +239,12 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
 
       {tab === "timeline" ? (
         <TimelineTab signals={group.signals} />
+      ) : briefStreaming && !prose && !briefError ? (
+        /* While the model parses, keep it minimal: a clean progress card rather
+           than a half-rendered brief full of pending chips. */
+        <GeneratingCard signalCount={group.signals.length} />
       ) : (
         <>
-          {/* AI generation status: the grounded floor renders immediately; the
-              narrative slots fill in or show as visible pending gaps. */}
-          {briefStreaming && (
-            <p className="text-xs text-text-muted inline-flex items-center gap-2 px-1">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Compiling AI sections from {group.signals.length} live signal
-              {group.signals.length === 1 ? "" : "s"}...
-            </p>
-          )}
           {briefError && <p className="text-xs text-amber-700 px-1">{briefError}</p>}
 
           {/* The brief and the dossier-owned tail sections share one rhythm. */}
@@ -359,6 +354,38 @@ export function CompanyDossier({ group }: CompanyDossierProps) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// Minimal progress card shown while the model parses. The steps are a readable
+// trace of what the layer does (deterministic floor first, then the LLM pass),
+// staggered in so it reads as activity, not a frozen spinner.
+function GeneratingCard({ signalCount }: { signalCount: number }) {
+  const steps = [
+    `Reading ${signalCount} live signal${signalCount === 1 ? "" : "s"}`,
+    "Classifying disciplines and motion",
+    "Computing fit and severity",
+    "Synthesizing grounded brief",
+  ];
+  return (
+    <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
+      <div className="flex items-center gap-2 text-primary">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <h3 className="text-xs font-bold uppercase tracking-[0.14em]">Generating brief</h3>
+      </div>
+      <ul className="mt-4 space-y-2.5">
+        {steps.map((s, i) => (
+          <li
+            key={i}
+            className="flex items-center gap-2.5 text-text-secondary animate-fade-in"
+            style={{ animationDelay: `${i * 120}ms` }}
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-primary/60 flex-shrink-0" />
+            <span className="font-mono text-xs">{s}...</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
